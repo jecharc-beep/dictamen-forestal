@@ -494,12 +494,23 @@ function generarPDF(returnBlob){
     doc.setTextColor.apply(doc,NK);doc.setFont('helvetica','normal');doc.setFontSize(8);
   }
   function campo2(l1,v1,l2,v2){
-    var half=cW/2-2;
-    doc.setFont('helvetica','bold');doc.setTextColor.apply(doc,GR);doc.text(l1+':',M+2,y+3.5);
-    doc.setFont('helvetica','normal');doc.setTextColor.apply(doc,NK);doc.text((v1||'—').slice(0,30),M+22,y+3.5);
-    doc.setFont('helvetica','bold');doc.setTextColor.apply(doc,GR);doc.text(l2+':',M+half+4,y+3.5);
-    doc.setFont('helvetica','normal');doc.setTextColor.apply(doc,NK);doc.text((v2||'—').slice(0,28),M+half+22,y+3.5);
-    y+=6;
+    doc.setFont('helvetica','bold');doc.setFontSize(7);doc.setTextColor.apply(doc,GR);
+    doc.text(l1+':',M+2,y+3.5);
+    doc.setFont('helvetica','normal');doc.setFontSize(7.5);doc.setTextColor.apply(doc,NK);
+    doc.text((v1||'—').slice(0,28),M+24,y+3.5);
+    doc.setFont('helvetica','bold');doc.setFontSize(7);doc.setTextColor.apply(doc,GR);
+    doc.text(l2+':',M+cW/2+2,y+3.5);
+    doc.setFont('helvetica','normal');doc.setFontSize(7.5);doc.setTextColor.apply(doc,NK);
+    doc.text((v2||'—').slice(0,24),M+cW/2+22,y+3.5);
+    y+=7;
+  }
+  function campo1(label,val){
+    doc.setFont('helvetica','bold');doc.setFontSize(7);doc.setTextColor.apply(doc,GR);
+    doc.text(label+':',M+2,y+3.5);
+    doc.setFont('helvetica','normal');doc.setFontSize(7.5);doc.setTextColor.apply(doc,NK);
+    var lines=doc.splitTextToSize(val||'—',cW-26);
+    lines.forEach(function(ln,li){doc.text(ln,M+24,y+3.5+(li*5));});
+    y+=5*lines.length+2;
   }
   function lista(items){
     if(!items||!items.length){doc.setTextColor.apply(doc,GR);doc.text('Sin registros',M+5,y+3.5);y+=5;return;}
@@ -521,11 +532,14 @@ function generarPDF(returnBlob){
     if(a.especie){doc.setFont('helvetica','italic');doc.setFontSize(8);doc.setTextColor.apply(doc,GR);doc.text(a.especie+(a.cientifico?' ('+a.cientifico+')':''),M+cW-3,y+6.5,'right');}
     y+=13;
     seccion('1. DATOS GENERALES',VRD);
-    campo2('Especie',a.especie,'Nombre científico',a.cientifico);
+    campo1('Árbol',a.nombre);
+    campo2('Especie',a.especie,'Estado físico',a.estado);
+    campo1('Nombre científico',a.cientifico);
     campo2('Altura',(a.altura?a.altura+' m':'—'),'DAP',(a.dap?a.dap+' cm':'—'));
-    campo2('Fase fenológica',a.fase,'Estado físico',a.estado);
-    campo2('Ciclo biológico',a.ciclo,'Ramificación',a.ram);
-    campo2('Sitio',a.sitio,'Compensación biomasa',a.compensacion);y+=2;
+    campo2('Fase fenológica',a.fase,'Ciclo biológico',a.ciclo);
+    campo2('Ramificación',a.ram,'Sitio',a.sitio);
+    campo2('Compensación biomasa',a.compensacion,'Requerimientos',(a.ch_req||[]).join(', ')||'—');
+    y+=2;
     seccion('2. EVALUACIÓN ESTRUCTURAL Y FITOSANITARIA',VL);
     var hayDef=false;
     [{label:'Sistema radicular',items:a.ch_raiz},{label:'Fuste',items:a.ch_fuste},{label:'Copa',items:a.ch_copa},{label:'Plagas y enfermedades',items:a.ch_plagas}].forEach(function(gr){
