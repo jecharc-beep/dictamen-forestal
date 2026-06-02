@@ -290,8 +290,91 @@ function cargarGuardado(){
   }catch(e){return false;}
 }
 
+// ── FINALIZAR: captura el mapa y luego envía ──
 function finalizarDictamen(){
   if(!arboles.length){toast('⚠️ No hay árboles registrados');return;}
+
+  if(map && marcadores.length){
+    // Asegurar que los tiles tengan crossOrigin antes de capturar
+    var mapContainer=document.getElementById('lmap');
+    if(mapContainer){
+      mapContainer.querySelectorAll('img.leaflet-tile').forEach(function(img){
+        img.crossOrigin='anonymous';
+      });
+    }
+
+    var canvas=document.createElement('canvas');
+    var mapSize=map.getSize();
+    canvas.width=mapSize.x;
+    canvas.height=mapSize.y;
+    var ctx=canvas.getContext('2d');
+
+    // Fondo de color para cuando falten tiles
+    ctx.fillStyle='#dce8dc';
+    ctx.fillRect(0,0,canvas.width,canvas.height);
+
+    var tilePane=mapContainer?mapContainer.querySelector('.leaflet-tile-pane'):null;
+    var tiles=tilePane?Array.from(tilePane.querySelectorAll('img.leaflet-tile')):[];
+
+    var promises=tiles.map(function(tile){
+      return new Promise(function(resolve){
+        if(!tile.complete||tile.naturalWidth===0){
+          var img=new Image();
+          img.crossOrigin='anonymous';
+          img.onload=function(){
+            try{
+              var pos=L.DomUtil.getPosition(tile.parentElement);
+              ctx.drawImage(img,
+                pos.x+parseFloat(tile.style.left||0),
+                pos.y+parseFloat(tile.style.top||0));
+            }catch(e){}
+            resolve();
+          };
+          img.onerror=resolve;
+          img.src=tile.src;
+        }else{
+          try{
+            var pos=L.DomUtil.getPosition(tile.parentElement);
+            ctx.drawImage(tile,
+              pos.x+parseFloat(tile.style.left||0),
+              pos.y+parseFloat(tile.style.top||0));
+          }catch(e){}
+          resolve();
+        }
+      });
+    });
+
+    Promise.all(promises).then(function(){
+      // Dibujar marcadores encima de los tiles
+      marcadores.forEach(function(o,i){
+        var pt=map.latLngToContainerPoint([o.lat,o.lng]);
+        ctx.beginPath();
+        ctx.arc(pt.x,pt.y,13,0,2*Math.PI);
+        ctx.fillStyle='#2D6A2D';
+        ctx.fill();
+        ctx.strokeStyle='white';
+        ctx.lineWidth=2.5;
+        ctx.stroke();
+        ctx.fillStyle='white';
+        ctx.font='bold 12px sans-serif';
+        ctx.textAlign='center';
+        ctx.textBaseline='middle';
+        ctx.fillText(String(i+1),pt.x,pt.y);
+      });
+      window._mapaImgB64=canvas.toDataURL('image/png');
+      _enviarDictamen();
+    }).catch(function(){
+      window._mapaImgB64=null;
+      _enviarDictamen();
+    });
+  }else{
+    window._mapaImgB64=null;
+    _enviarDictamen();
+  }
+}
+
+// ── Lógica de envío separada ──
+function _enviarDictamen(){
   var folio=g('folio')?g('folio').value:'',fecha=g('fecha')?g('fecha').value:'',hora=g('hora')?g('hora').value:'',supervisor=g('sup')?g('sup').value:'',programa=g('prog')?g('prog').value:'',obs=g('obs')?g('obs').value:'';
   showModal('Generando dictamen…','Creando PDF y enviando a Drive…');
   setSyncBadge('sync');
@@ -337,13 +420,11 @@ function renderArbol(){var c=g('arbol-det');if(!c||!arboles.length){if(c)c.inner
 
 function buildArbol(id){
   var a=arboles[id],h='';
-  // Datos básicos
   h+='<div class="card"><div class="ch dk"><span class="ch-icon">📋</span>'+a.nombre+'</div><div class="cb">';
   h+='<div class="field"><label>Especie</label><input type="text" placeholder="Ej. Jacaranda" value="'+esc(a.especie)+'" oninput="sf(\'especie\',this.value)" autocomplete="off"></div>';
   h+='<div class="field"><label>Nombre científico</label><input type="text" placeholder="Ej. Jacaranda mimosifolia" value="'+esc(a.cientifico)+'" oninput="sf(\'cientifico\',this.value)" autocomplete="off"></div>';
   h+='<div class="g2"><div class="field"><label>Altura m</label><input type="number" inputmode="decimal" placeholder="0.0" value="'+esc(a.altura)+'" oninput="sf(\'altura\',this.value)"></div>';
   h+='<div class="field"><label>DAP cm</label><input type="number" inputmode="decimal" placeholder="0" value="'+esc(a.dap)+'" oninput="sf(\'dap\',this.value)"></div></div></div></div>';
-  // Características
   h+='<div class="card"><div class="ch dk"><span class="ch-icon">🔍</span>Características</div><div class="cb">';
   h+='<p class="stitle">Fase fenológica</p><div class="ckg c2">';
   h+=excl(a,'fase','vegetativo','🌿 Vegetativo');h+=excl(a,'fase','seco','🍂 Seco');
@@ -354,12 +435,10 @@ function buildArbol(id){
   h+='</div><div class="sep"></div><p class="stitle">Ramificación</p><div class="ckg">';
   ['Monopódico','Dicotómico','Simpódico'].forEach(function(v){h+=excl(a,'ram',v,v);});
   h+='</div></div></div>';
-  // Defectos
   h+=dCard(a,'ch_raiz','🌱 Sistema Radicular','vrd',[['w','Raíces levantando banqueta/pavimento'],['d','Raíces cortadas por obras'],['w','Espacio radicular reducido'],['d','Daño mecánico por vehículos']]);
   h+=dCard(a,'ch_fuste','🪵 Fuste','vrd',[['w','Corteza agrietada/fisuras'],['d','Grietas profundas'],['d','Cavidad/hueco'],['d','Pudrición visible'],['w','Exudados anómalos'],['d','Inclinación >30°'],['w','Corteza desprendida/cancros'],['d','Desgajado']]);
   h+=dCard(a,'ch_copa','🌿 Copa','vrd',[['w','Copa asimétrica'],['w','Ramas secas'],['d','Rama desgajada/colgante'],['w','Chupones post-desmoche'],['d','Horquillas incluidas'],['w','Historial desmoche drástico'],['w','Copa excesivamente densa']]);
   h+=dCard(a,'ch_plagas','🍄 Plagas y enfermedades','am',[['w','Hongos de pudrición'],['w','Muérdago/parásitas'],['w','Barrenadores'],['w','Defoliadores'],['w','Descortezadores'],['w','Xilófagos'],['w','Bacterias/nemátodos']]);
-  // Entorno
   h+='<div class="card"><div class="ch az"><span class="ch-icon">🎯</span>Entorno y Diana</div><div class="cb">';
   h+='<p class="stitle">Afectaciones</p><div class="ckg c2" style="margin-bottom:10px">';
   [['w','Banqueta'],['w','Piso'],['d','Cimiento'],['d','Muro'],['w','Cochera'],['w','Aljibe'],['w','Drenaje'],['w','Toma agua'],['d','Cables CFE'],['d','Cables conducción'],['w','Telecomunicaciones'],['w','Cancel']].forEach(function(v){h+=chk(a,'ch_diana',v[1],v[1],v[0]);});
@@ -369,7 +448,6 @@ function buildArbol(id){
   h+='</div><p class="stitle">Requerimientos operativos</p><div class="ckg">';
   ['Caída libre','Técnicas de cordaje','Canastilla'].forEach(function(v){h+=chk(a,'ch_req',v,v,'');});
   h+='</div></div></div>';
-  // Resultado y Manejo
   h+='<div class="card"><div class="ch vrd"><span class="ch-icon">🏁</span>Resultado y Manejo</div><div class="cb">';
   var rC=a.riesgo||'bajo',rN=a.riesgo==='alto'?'🔴 RIESGO ALTO':a.riesgo==='medio'?'🟡 RIESGO MEDIO':'⚪ NO APLICA';
   h+='<div class="resbox '+rC+'"><div class="rptsl">Puntaje total</div><div class="rpts">'+(a._pts||0)+'</div><div class="rn">'+rN+'</div></div>';
@@ -378,7 +456,6 @@ function buildArbol(id){
     h+='<div class="rbtn '+r.k+(a.riesgo===r.k?' sel':'')+'" onclick="setRiesgo(\''+r.k+'\')">'+'<div class="dot"></div><div class="rl">'+r.l+'</div><div class="rd2">'+r.d+'</div></div>';
   });
   h+='</div><div class="sep"></div>';
-  // PODA
   h+='<p class="stitle">✂️ Poda — Reglamento Zapopan</p>';
   h+='<div style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px;">';
   h+=acord('p1','Art. I — Inminente peligro',bChks(a,'ch_poda',[['w','a) Interferencia con líneas de conducción aérea'],['w','b) Ramas bajas que obstruyen el paso peatonal o vehicular'],['w','c) Impedimento a luminarias y señales de tráfico'],['d','d) Ramas con riesgo de desgajarse'],['d','e) Árboles de porte alto con riesgo de desplome'],['w','f) Ubicados en sitios inadecuados o que dañen la vía pública']]));
@@ -387,19 +464,16 @@ function buildArbol(id){
   h+=acord('p4','Art. V — Restauración de estructura',bChks(a,'ch_poda',[['','a) Árboles podados más del 25% o con desmoches previos'],['','b) Copas desbalanceadas que requieren reequilibrio'],['','c) Follaje reprimido que requiere formación o topiaria']]));
   h+=acord('p5','Art. VI — Afectación a infraestructura',bChks(a,'ch_poda',[['w','a) Interferencia con tuberías de agua o drenaje'],['w','b) Daño o riesgo a cableado eléctrico o telecomunicaciones'],['w','c) Levantamiento de banquetas o guarniciones por ramas bajas'],['w','d) Interferencia con bardas, muros o construcciones']]));
   h+='</div>';
-  // DERRIBO
   h+='<p class="stitle">🪓 Derribo — Reglamento Zapopan</p>';
   h+='<div style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px;">';
   h+=acord('d1','Art. I–V — Criterios generales',bChks(a,'ch_derribo',[['d','I. Inminente peligro de desplome (≤24h)'],['d','II. Enfermedad o plaga terminal sin posibilidad de recuperación'],['d','III. Daño comprobado a personas o infraestructura'],['w','IV. Levantamiento severo de aceras y guarniciones'],['','V. Requerimiento de obra pública prioritaria']]));
   h+=acord('d2','Art. VI–VIII — Criterios adicionales',bChks(a,'ch_derribo',[['','VI. Ordenamiento o reordenamiento territorial'],['w','VII. Dictamen de protección civil por riesgo estructural'],['','VIII. Proyectos privados con autorización municipal']]));
   h+='</div>';
-  // NAE-SEMADES
   h+='<p class="stitle">📋 NAE-SEMADES 001/2003</p>';
   h+='<div style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px;">';
   h+=acord('nae1','Trasplante — 5.4.1 al 5.4.7',bChks(a,'ch_nae_tras',[['','5.4.1 El fuste de grosor invade banquetas o caminos peatonales'],['','5.4.2 Ubicado en camellones o cruceros generando falta de visibilidad'],['','5.4.3 Obstruye acceso a cochera o entrada vehicular'],['w','5.4.4 Puede ocasionar daños a bienes públicos o privados'],['','5.4.5 Requerido por obra de ingeniería civil de interés público'],['','5.4.6 Remodelación o rehabilitación de áreas verdes'],['','5.4.7 Proyecto arquitectónico que permite su reubicación']]));
   h+=acord('nae2','Derribo — 5.6.1 al 5.6.8',bChks(a,'ch_nae_der',[['w','5.6.1 Fuste de grosor obstruye circulación peatonal o vehicular'],['w','5.6.2 Ubicado en camellones o cruceros provocando accidentes viales'],['w','5.6.3 Obstruye acceso a cochera o entrada vehicular'],['d','5.6.4 Raíces dañan cimientos, bardas o cañerías'],['d','5.6.5 Raíces levantan carpeta asfáltica o banquetas'],['d','5.6.6 Árbol sobremaduro que obstruye líneas eléctricas de alta tensión'],['d','5.6.7 Árbol en turno fisiológico avanzado con riesgo para la vía pública'],['','5.6.8 Requerido por obra de ingeniería civil de interés público']]));
   h+='</div>';
-  // Compensación y notas
   h+='<p class="stitle">🌱 Compensación de biomasa</p><div class="ckg c2" style="margin-bottom:14px;">';
   h+=excl(a,'compensacion','si','✅ Sí');h+=excl(a,'compensacion','no_aplica','✗ No aplica');
   h+='</div>';
@@ -548,7 +622,6 @@ function generarPDF(returnBlob){
     if(!hayDef){doc.setTextColor.apply(doc,GR);doc.setFontSize(8);doc.text('Sin defectos registrados',M+5,y+3.5);y+=6;}
     y+=2;
     if(a.ch_diana&&a.ch_diana.length){seccion('3. AFECTACIONES / DIANA',AZ);lista(a.ch_diana);y+=2;}
-    // Clasificación solo ALTO / No Aplica
     chkPg(16);
     if(a.riesgo==='alto'){
       doc.setFillColor.apply(doc,RO);doc.roundedRect(M,y,cW,14,2,2,'F');
@@ -571,8 +644,39 @@ function generarPDF(returnBlob){
       if(tT){chkPg(8);doc.setFont('helvetica','bold');doc.setFontSize(8);doc.setTextColor.apply(doc,AZ);doc.text('↕ Trasplante — NAE-SEMADES 5.4',M+3,y+3.5);y+=6;doc.setFont('helvetica','normal');doc.setTextColor.apply(doc,NK);lista(a.ch_nae_tras);}
       y+=2;
     }
-    // Fotos
-    chkPg(50);seccion('5. REGISTRO FOTOGRÁFICO',[68,68,68]);
+
+    // ── SECCIÓN 5: CROQUIS DE GEORREFERENCIACIÓN ──
+    if(window._mapaImgB64 && marcadores && marcadores.length){
+      chkPg(85);
+      seccion('5. CROQUIS DE GEORREFERENCIACIÓN',AZ);
+      var mH=60,mW=cW;
+      try{
+        doc.addImage(window._mapaImgB64,'PNG',M,y,mW,mH);
+        doc.setDrawColor.apply(doc,GC);doc.setLineWidth(0.3);
+        doc.rect(M,y,mW,mH,'S');
+        y+=mH+3;
+        // Tabla de coordenadas
+        doc.setFont('helvetica','bold');doc.setFontSize(7);doc.setTextColor.apply(doc,GR);
+        doc.text('Coordenadas registradas:',M+2,y+3.5);
+        y+=6;
+        marcadores.forEach(function(o,i){
+          chkPg(6);
+          doc.setFillColor.apply(doc,VL);doc.circle(M+5,y+3,1.2,'F');
+          doc.setFont('helvetica','normal');doc.setFontSize(7);doc.setTextColor.apply(doc,NK);
+          doc.text('Árbol #'+(i+1)+'  Lat: '+o.lat.toFixed(6)+'   Lng: '+o.lng.toFixed(6),M+9,y+3.5);
+          y+=5;
+        });
+      }catch(e){
+        doc.setFontSize(8);doc.setTextColor.apply(doc,GR);doc.setFont('helvetica','italic');
+        doc.text('No fue posible insertar el croquis.',M+3,y+3.5);
+        y+=8;
+      }
+      y+=4;
+    }
+
+    // ── SECCIÓN FOTOS (renumerada según si hay croquis) ──
+    var numFotos=(window._mapaImgB64&&marcadores&&marcadores.length)?'6':'5';
+    chkPg(50);seccion(numFotos+'. REGISTRO FOTOGRÁFICO',[68,68,68]);
     if(fotosArr&&fotosArr.length>0){
       var fW=(cW-8)/3,fH=fW*0.75,fx=M,fy=y;
       fotosArr.forEach(function(src,fi){
@@ -588,7 +692,8 @@ function generarPDF(returnBlob){
       doc.text('Sin fotos registradas.',M+3,y+3.5);doc.setFont('helvetica','normal');y+=8;
     }
     if(a.notas||a.notas_r){
-      seccion('6. NOTAS',[68,68,68]);
+      var numNotas=(window._mapaImgB64&&marcadores&&marcadores.length)?'7':'6';
+      seccion(numNotas+'. NOTAS',[68,68,68]);
       if(a.notas){var l=doc.splitTextToSize(a.notas,cW-6);doc.text(l,M+3,y+3.5);y+=4*l.length+2;}
       if(a.notas_r){var l2=doc.splitTextToSize('Resultado: '+a.notas_r,cW-6);doc.text(l2,M+3,y+3.5);y+=4*l2.length+2;}
     }
@@ -601,7 +706,6 @@ function generarPDF(returnBlob){
   campo2('Fecha',fecha,'Supervisor/a',sup);
   if(obs){var lo=doc.splitTextToSize(obs,cW-6);doc.setFont('helvetica','normal');doc.setFontSize(8);doc.setTextColor.apply(doc,NK);doc.text(lo,M+3,y+3.5);y+=4*lo.length+2;}
   y+=4;
-  // Tabla resumen
   chkPg(10+arboles.length*8);
   doc.setFont('helvetica','bold');doc.setFontSize(8);doc.setTextColor.apply(doc,VRD);
   [{t:'No.',x:M+2},{t:'Árbol',x:M+12},{t:'Especie',x:M+46},{t:'Alt.',x:M+90},{t:'DAP',x:M+106},{t:'Estado',x:M+120},{t:'Clasificación',x:M+142},{t:'Manejo',x:M+170}].forEach(function(c){doc.text(c.t,c.x,y+4);});
@@ -629,7 +733,6 @@ function generarPDF(returnBlob){
     doc.setDrawColor(220,220,220);doc.setLineWidth(0.2);doc.line(M,y+rh,M+cW,y+rh);y+=rh;
   });
   y+=6;
-  // Firmas portada
   chkPg(40);
   doc.setDrawColor.apply(doc,GC);doc.setLineWidth(0.3);doc.line(M,y+2,M+cW,y+2);y+=8;
   doc.setFont('helvetica','bold');doc.setFontSize(10);doc.setTextColor.apply(doc,NA);
@@ -646,7 +749,6 @@ function generarPDF(returnBlob){
   y+=36;
   doc.setFontSize(7);doc.setTextColor.apply(doc,GR);
   doc.text('Generado el: '+new Date().toLocaleString('es-MX'),W/2,y,'center');
-  // Páginas de árboles
   arboles.forEach(function(a,i){doc.addPage();cabecera();bloqueArbol(a,i+1,arboles.length);});
 
   if(returnBlob)return doc.output('blob');
@@ -659,7 +761,25 @@ function iniciarMapa(){
   var mw=g('map-wrap');if(!mw||map)return;
   mw.innerHTML='<div id="lmap" style="width:100%;height:100%;"></div>';
   var js=document.createElement('script');js.src='https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js';
-  js.onload=function(){var lk=document.createElement('link');lk.rel='stylesheet';lk.href='https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css';document.head.appendChild(lk);setTimeout(function(){map=L.map('lmap').setView([20.7214,-103.4067],15);L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OSM',maxZoom:19}).addTo(map);map.on('click',function(e){if(!modoMarcado)return;addMarker(e.latlng.lat,e.latlng.lng);modoMarcado=false;g('btn-ubicar').textContent='📍 Marcar árbol';g('mlabel').textContent='✅ Árbol marcado';});},300);};
+  js.onload=function(){
+    var lk=document.createElement('link');lk.rel='stylesheet';lk.href='https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css';
+    document.head.appendChild(lk);
+    setTimeout(function(){
+      map=L.map('lmap').setView([20.7214,-103.4067],15);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
+        attribution:'© OSM',
+        maxZoom:19,
+        crossOrigin:true
+      }).addTo(map);
+      map.on('click',function(e){
+        if(!modoMarcado)return;
+        addMarker(e.latlng.lat,e.latlng.lng);
+        modoMarcado=false;
+        g('btn-ubicar').textContent='📍 Marcar árbol';
+        g('mlabel').textContent='✅ Árbol marcado';
+      });
+    },300);
+  };
   document.head.appendChild(js);
 }
 function ubicarArbol(){if(!map)return;modoMarcado=!modoMarcado;g('btn-ubicar').textContent=modoMarcado?'✋ Cancelar':'📍 Marcar árbol';g('mlabel').textContent=modoMarcado?'Toca el mapa…':'Cancelado';}
