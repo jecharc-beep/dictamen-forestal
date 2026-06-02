@@ -289,7 +289,32 @@ function cargarGuardado(){
 function finalizarDictamen(){
   if(!arboles.length){toast('⚠️ No hay árboles registrados');return;}
   window._mapaImgB64=null;
-  _enviarDictamen();
+  // Intentar precargar mapa de calles OSM antes de generar el PDF
+  if(marcadores&&marcadores.length){
+    var lats=marcadores.map(function(o){return o.lat;});
+    var lngs=marcadores.map(function(o){return o.lng;});
+    var cLat=(Math.min.apply(null,lats)+Math.max.apply(null,lats))/2;
+    var cLng=(Math.min.apply(null,lngs)+Math.max.apply(null,lngs))/2;
+    var span=Math.max(Math.max.apply(null,lats)-Math.min.apply(null,lats),
+                      Math.max.apply(null,lngs)-Math.min.apply(null,lngs));
+    var zoom=span>0.02?13:span>0.005?15:17;
+    var osmUrl='https://staticmap.openstreetmap.de/staticmap.php?center='+cLat+','+cLng+'&zoom='+zoom+'&size=600x300&format=png';
+    var img=new Image();img.crossOrigin='anonymous';
+    img.onload=function(){
+      try{
+        var cv=document.createElement('canvas');cv.width=img.width;cv.height=img.height;
+        cv.getContext('2d').drawImage(img,0,0);
+        window._mapaImgB64=cv.toDataURL('image/png');
+      }catch(e){window._mapaImgB64=null;}
+      _enviarDictamen();
+    };
+    img.onerror=function(){window._mapaImgB64=null;_enviarDictamen();};
+    img.src=osmUrl;
+    // Timeout de seguridad: si OSM tarda más de 5s, continuar sin mapa
+    setTimeout(function(){if(!window._mapaImgB64){img.src='';_enviarDictamen();}},5000);
+  } else {
+    _enviarDictamen();
+  }
 }
 
 function _enviarDictamen(){
@@ -489,7 +514,6 @@ function generarPDF(returnBlob){
     doc.setFontSize(8.5);doc.setTextColor.apply(doc,VRD);
     doc.text('Dirección de Parques y Jardines',W/2,21,'center');
     doc.setFont('helvetica','normal');doc.setFontSize(7.5);doc.setTextColor.apply(doc,GR);
-    doc.text('Coordinación de Arbolado Urbano',W/2,25.5,'center');
     // Franja verde con datos del dictamen
     doc.setFillColor.apply(doc,VRD);doc.rect(0,7+lt+3,W,8,'F');
     doc.setTextColor.apply(doc,BLC);doc.setFont('helvetica','bold');doc.setFontSize(7.5);
@@ -513,18 +537,21 @@ function generarPDF(returnBlob){
 
   // ── Fila de dos campos ──
   function campo2(l1,v1,l2,v2){
-    chkPg(LH);
-    var col1=M+cW*0.5;
+    var col1=M+cW*0.5,hw=cW*0.5-32;
+    var lines1=doc.splitTextToSize(String(v1||'—'),hw);
+    var lines2=doc.splitTextToSize(String(v2||'—'),hw);
+    var h=Math.max(LH,Math.max(lines1.length,lines2.length)*5+4);
+    chkPg(h);
     doc.setFont('helvetica','bold');doc.setFontSize(7);doc.setTextColor.apply(doc,GR);
     doc.text(l1+':',M+2,y+4.5);
     doc.setFont('helvetica','normal');doc.setFontSize(8);doc.setTextColor.apply(doc,NK);
-    doc.text((v1||'—').slice(0,26),M+30,y+4.5);
+    lines1.forEach(function(ln,li){doc.text(ln,M+32,y+4.5+(li*5));});
     doc.setFont('helvetica','bold');doc.setFontSize(7);doc.setTextColor.apply(doc,GR);
     doc.text(l2+':',col1+2,y+4.5);
     doc.setFont('helvetica','normal');doc.setFontSize(8);doc.setTextColor.apply(doc,NK);
-    doc.text((v2||'—').slice(0,22),col1+28,y+4.5);
-    doc.setDrawColor.apply(doc,GC);doc.setLineWidth(0.15);doc.line(M,y+LH,M+cW,y+LH);
-    y+=LH;
+    lines2.forEach(function(ln,li){doc.text(ln,col1+28,y+4.5+(li*5));});
+    doc.setDrawColor.apply(doc,GC);doc.setLineWidth(0.15);doc.line(M,y+h,M+cW,y+h);
+    y+=h;
   }
 
   // ── Campo de una línea completo ──
@@ -587,20 +614,45 @@ function generarPDF(returnBlob){
     minLat-=dLat*pad;maxLat+=dLat*pad;
     minLng-=dLng*pad;maxLng+=dLng*pad;
 
-    // Fondo del mapa
-    doc.setFillColor(232,240,232);doc.rect(mX,mY,mW,mH,'F');
-    doc.setDrawColor.apply(doc,GC);doc.setLineWidth(0.4);doc.rect(mX,mY,mW,mH,'S');
-
-    // Grid de referencia (lineas tenues)
-    doc.setDrawColor(200,215,200);doc.setLineWidth(0.2);
-    for(var gi=1;gi<4;gi++){
-      doc.line(mX+mW*gi/4,mY,mX+mW*gi/4,mY+mH);
-      doc.line(mX,mY+mH*gi/4,mX+mW,mY+mH*gi/4);
-    }
-
-    // Función coordenada → px en el mapa
+    // Función coordenada → mm en el mapa
     function toMmX(lng){return mX+((lng-minLng)/(maxLng-minLng))*mW;}
     function toMmY(lat){return mY+mH-((lat-minLat)/(maxLat-minLat))*mH;}
+
+    // Mapa de calles: intentar imagen OSM precargada
+    if(window._mapaImgB64){
+      try{doc.addImage(window._mapaImgB64,'PNG',mX,mY,mW,mH);}
+      catch(ex){_dibujarCallesSimuladas();}
+    } else { _dibujarCallesSimuladas(); }
+    doc.setDrawColor.apply(doc,GC);doc.setLineWidth(0.6);doc.rect(mX,mY,mW,mH,'S');
+
+    function _dibujarCallesSimuladas(){
+      // Fondo pavimento
+      doc.setFillColor(240,244,248);doc.rect(mX,mY,mW,mH,'F');
+      // Manzanas (bloques grises)
+      doc.setFillColor(215,224,232);
+      var bCols=5,bRows=4,bW=mW/bCols,bH=mH/bRows,gap=1.8;
+      for(var bi=0;bi<bCols;bi++){for(var bj=0;bj<bRows;bj++){
+        doc.rect(mX+bi*bW+gap,mY+bj*bH+gap,bW-gap*2,bH-gap*2,'F');
+      }}
+      // Calles horizontales y verticales (blanco)
+      doc.setFillColor(255,255,255);
+      for(var si=1;si<bCols;si++){doc.rect(mX+si*bW-gap,mY,gap*2,mH,'F');}
+      for(var sj=1;sj<bRows;sj++){doc.rect(mX,mY+sj*bH-gap,mW,gap*2,'F');}
+      // Nombres de calles simulados
+      doc.setFont('helvetica','normal');doc.setFontSize(4.5);doc.setTextColor(120,130,145);
+      var cLat2=(minLat+maxLat)/2,cLng2=(minLng+maxLng)/2;
+      var dLat2=maxLat-minLat,dLng2=maxLng-minLng;
+      // Etiquetas calles verticales
+      for(var ni=1;ni<bCols;ni++){
+        var lngLabel=(minLng+ni*dLng2/bCols).toFixed(4)+'°W';
+        doc.text(lngLabel,mX+ni*bW,mY+2,'center');
+      }
+      // Etiquetas calles horizontales
+      for(var nj=1;nj<bRows;nj++){
+        var latLabel=(maxLat-nj*dLat2/bRows).toFixed(4)+'°N';
+        doc.text(latLabel,mX+1,mY+nj*bH,'left');
+      }
+    }
 
     // Línea entre marcadores si hay más de uno
     if(marcadores.length>1){
@@ -675,7 +727,9 @@ function generarPDF(returnBlob){
     campo2('Altura',(a.altura?a.altura+' m':'—'),'DAP',(a.dap?a.dap+' cm':'—'));
     campo2('Fase fenológica',a.fase,'Ciclo biológico',a.ciclo);
     campo2('Ramificación',a.ram,'Sitio',a.sitio);
-    campo2('Compensación biomasa',a.compensacion,'Requerimientos',(a.ch_req||[]).join(', ')||'—');
+    campo2('Compensación biomasa',a.compensacion,'Sitio',a.sitio||'—');
+    y+=2;
+    if(a.ch_req&&a.ch_req.length){subgr('Requerimientos operativos',AZ);lista(a.ch_req);}
     y+=4;
 
     seccion('2. EVALUACIÓN ESTRUCTURAL Y FITOSANITARIA',VL);
@@ -737,7 +791,7 @@ function generarPDF(returnBlob){
   seccion('RESUMEN DEL DICTAMEN',VRD);
   campo2('Total de árboles',String(arboles.length),'Folio',folio);
   campo2('Fecha',fecha,'Supervisor/a',sup);
-  campo2('Programa',prog,'Hora',g('hora')?g('hora').value:'');
+  campo1('Programa',prog);
   if(obs){
     chkPg(10);
     var lo=doc.splitTextToSize(obs,cW-6);
@@ -748,7 +802,7 @@ function generarPDF(returnBlob){
 
   // Tabla resumen
   chkPg(12+arboles.length*9);
-  var cols=[{t:'No.',x:M+2,w:10},{t:'Árbol',x:M+13,w:32},{t:'Especie',x:M+46,w:40},{t:'Alt.',x:M+88,w:14},{t:'DAP',x:M+103,w:15},{t:'Estado',x:M+119,w:18},{t:'Riesgo',x:M+138,w:22},{t:'Manejo',x:M+161,w:26}];
+  var cols=[{t:'No.',x:M+2,w:8},{t:'Especie',x:M+12,w:38},{t:'N. Científico',x:M+52,w:42},{t:'Alt.',x:M+96,w:12},{t:'DAP',x:M+110,w:13},{t:'Estado',x:M+125,w:18},{t:'Riesgo',x:M+144,w:18},{t:'Manejo',x:M+163,w:24}];
   // Header tabla
   doc.setFillColor(235,245,235);doc.rect(M,y,cW,8,'F');
   doc.setFont('helvetica','bold');doc.setFontSize(7.5);doc.setTextColor.apply(doc,VRD);
@@ -767,8 +821,8 @@ function generarPDF(returnBlob){
     if(i%2===0){doc.setFillColor(250,253,250);doc.rect(M,y,cW,rh,'F');}
     doc.setFont('helvetica','normal');doc.setFontSize(7.5);doc.setTextColor.apply(doc,NK);
     doc.text(String(i+1),cols[0].x,y+5.5);
-    doc.text((a.nombre||'—').slice(0,11),cols[1].x,y+5.5);
-    doc.text((a.especie||'—').slice(0,15),cols[2].x,y+5.5);
+    doc.text((a.especie||'—').slice(0,14),cols[1].x,y+5.5);
+    doc.text((a.cientifico||'—').slice(0,16),cols[2].x,y+5.5);
     doc.text((a.altura?a.altura+' m':'—'),cols[3].x,y+5.5);
     doc.text((a.dap?a.dap+' cm':'—'),cols[4].x,y+5.5);
     doc.text((a.estado||'—').slice(0,7),cols[5].x,y+5.5);
@@ -798,13 +852,6 @@ function generarPDF(returnBlob){
   doc.text('Nombre y cargo',M+fw/2,y+32,'center');
   doc.text('Nombre y cargo',M+fw+16+fw/2,y+32,'center');
   y+=40;
-  // Logo H. Ayuntamiento centrado debajo de firmas
-  chkPg(36);
-  try{
-    var aytoW=32,aytoH=28;
-    doc.addImage('data:image/png;base64,'+IMG_AYTO,'PNG',W/2-aytoW/2,y,aytoW,aytoH);
-    y+=aytoH+3;
-  }catch(e){y+=4;}
   doc.setFontSize(7);doc.setTextColor.apply(doc,GR);
   doc.text('Generado el: '+new Date().toLocaleString('es-MX'),W/2,y,'center');
 
