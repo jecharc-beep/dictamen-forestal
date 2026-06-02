@@ -151,8 +151,6 @@ body{font-family:'IBM Plex Sans',sans-serif;background:var(--fo);color:var(--gr)
 </div>
 
 <div class="main">
-
-  <!-- TAB 0 -->
   <div class="sec active" id="sec0">
     <div class="sec-title">📋 Datos generales</div>
     <div class="card"><div class="cb">
@@ -167,7 +165,6 @@ body{font-family:'IBM Plex Sans',sans-serif;background:var(--fo);color:var(--gr)
     <div class="brow"><button class="btn bp btn-full" onclick="goTab(1)">Ir a Árboles →</button></div>
   </div>
 
-  <!-- TAB 1 -->
   <div class="sec" id="sec1">
     <div class="sec-title">🌳 Árboles</div>
     <div class="fab-row">
@@ -182,7 +179,6 @@ body{font-family:'IBM Plex Sans',sans-serif;background:var(--fo);color:var(--gr)
     </div>
   </div>
 
-  <!-- TAB 2 -->
   <div class="sec" id="sec2">
     <div class="sec-title">✅ Cierre</div>
     <div class="card"><div class="ch vrd"><span class="ch-icon">📊</span>Resumen</div><div class="cb" id="resumen"></div></div>
@@ -227,7 +223,6 @@ body{font-family:'IBM Plex Sans',sans-serif;background:var(--fo);color:var(--gr)
       <button class="btn bp btn-full" onclick="finalizarDictamen()" style="background:#2D6A2D;font-size:16px;">✅ ¡Listo!</button>
     </div>
   </div>
-
 </div>
 
 <nav class="nav">
@@ -290,90 +285,13 @@ function cargarGuardado(){
   }catch(e){return false;}
 }
 
-// ── FINALIZAR: captura el mapa y luego envía ──
+// ── FINALIZAR ──
 function finalizarDictamen(){
   if(!arboles.length){toast('⚠️ No hay árboles registrados');return;}
-
-  if(map && marcadores.length){
-    // Asegurar que los tiles tengan crossOrigin antes de capturar
-    var mapContainer=document.getElementById('lmap');
-    if(mapContainer){
-      mapContainer.querySelectorAll('img.leaflet-tile').forEach(function(img){
-        img.crossOrigin='anonymous';
-      });
-    }
-
-    var canvas=document.createElement('canvas');
-    var mapSize=map.getSize();
-    canvas.width=mapSize.x;
-    canvas.height=mapSize.y;
-    var ctx=canvas.getContext('2d');
-
-    // Fondo de color para cuando falten tiles
-    ctx.fillStyle='#dce8dc';
-    ctx.fillRect(0,0,canvas.width,canvas.height);
-
-    var tilePane=mapContainer?mapContainer.querySelector('.leaflet-tile-pane'):null;
-    var tiles=tilePane?Array.from(tilePane.querySelectorAll('img.leaflet-tile')):[];
-
-    var promises=tiles.map(function(tile){
-      return new Promise(function(resolve){
-        if(!tile.complete||tile.naturalWidth===0){
-          var img=new Image();
-          img.crossOrigin='anonymous';
-          img.onload=function(){
-            try{
-              var pos=L.DomUtil.getPosition(tile.parentElement);
-              ctx.drawImage(img,
-                pos.x+parseFloat(tile.style.left||0),
-                pos.y+parseFloat(tile.style.top||0));
-            }catch(e){}
-            resolve();
-          };
-          img.onerror=resolve;
-          img.src=tile.src;
-        }else{
-          try{
-            var pos=L.DomUtil.getPosition(tile.parentElement);
-            ctx.drawImage(tile,
-              pos.x+parseFloat(tile.style.left||0),
-              pos.y+parseFloat(tile.style.top||0));
-          }catch(e){}
-          resolve();
-        }
-      });
-    });
-
-    Promise.all(promises).then(function(){
-      // Dibujar marcadores encima de los tiles
-      marcadores.forEach(function(o,i){
-        var pt=map.latLngToContainerPoint([o.lat,o.lng]);
-        ctx.beginPath();
-        ctx.arc(pt.x,pt.y,13,0,2*Math.PI);
-        ctx.fillStyle='#2D6A2D';
-        ctx.fill();
-        ctx.strokeStyle='white';
-        ctx.lineWidth=2.5;
-        ctx.stroke();
-        ctx.fillStyle='white';
-        ctx.font='bold 12px sans-serif';
-        ctx.textAlign='center';
-        ctx.textBaseline='middle';
-        ctx.fillText(String(i+1),pt.x,pt.y);
-      });
-      window._mapaImgB64=canvas.toDataURL('image/png');
-      _enviarDictamen();
-    }).catch(function(){
-      window._mapaImgB64=null;
-      _enviarDictamen();
-    });
-  }else{
-    window._mapaImgB64=null;
-    _enviarDictamen();
-  }
+  window._mapaImgB64=null;
+  _enviarDictamen();
 }
 
-// ── Lógica de envío separada ──
 function _enviarDictamen(){
   var folio=g('folio')?g('folio').value:'',fecha=g('fecha')?g('fecha').value:'',hora=g('hora')?g('hora').value:'',supervisor=g('sup')?g('sup').value:'',programa=g('prog')?g('prog').value:'',obs=g('obs')?g('obs').value:'';
   showModal('Generando dictamen…','Creando PDF y enviando a Drive…');
@@ -456,21 +374,18 @@ function buildArbol(id){
     h+='<div class="rbtn '+r.k+(a.riesgo===r.k?' sel':'')+'" onclick="setRiesgo(\''+r.k+'\')">'+'<div class="dot"></div><div class="rl">'+r.l+'</div><div class="rd2">'+r.d+'</div></div>';
   });
   h+='</div><div class="sep"></div>';
-  h+='<p class="stitle">✂️ Poda — Reglamento Zapopan</p>';
-  h+='<div style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px;">';
+  h+='<p class="stitle">✂️ Poda — Reglamento Zapopan</p><div style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px;">';
   h+=acord('p1','Art. I — Inminente peligro',bChks(a,'ch_poda',[['w','a) Interferencia con líneas de conducción aérea'],['w','b) Ramas bajas que obstruyen el paso peatonal o vehicular'],['w','c) Impedimento a luminarias y señales de tráfico'],['d','d) Ramas con riesgo de desgajarse'],['d','e) Árboles de porte alto con riesgo de desplome'],['w','f) Ubicados en sitios inadecuados o que dañen la vía pública']]));
   h+=acord('p2','Art. II — Mantenimiento de la salud del árbol',bChks(a,'ch_poda',[['','a) Regular crecimiento radicular, de copa y follaje'],['','b) Suprimir ramas mal orientadas o con crecimiento anómalo'],['','c) Mejorar visibilidad sin realizar podas excesivas']]));
   h+=acord('p3','Art. IV — Fitosanitaria',bChks(a,'ch_poda',[['w','a) Eliminación de ramas muertas, plagadas o enfermas'],['w','b) Ramas con hongos, cancros o pudriciones visibles'],['w','c) Eliminación de plantas parásitas o trepadoras']]));
   h+=acord('p4','Art. V — Restauración de estructura',bChks(a,'ch_poda',[['','a) Árboles podados más del 25% o con desmoches previos'],['','b) Copas desbalanceadas que requieren reequilibrio'],['','c) Follaje reprimido que requiere formación o topiaria']]));
   h+=acord('p5','Art. VI — Afectación a infraestructura',bChks(a,'ch_poda',[['w','a) Interferencia con tuberías de agua o drenaje'],['w','b) Daño o riesgo a cableado eléctrico o telecomunicaciones'],['w','c) Levantamiento de banquetas o guarniciones por ramas bajas'],['w','d) Interferencia con bardas, muros o construcciones']]));
   h+='</div>';
-  h+='<p class="stitle">🪓 Derribo — Reglamento Zapopan</p>';
-  h+='<div style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px;">';
+  h+='<p class="stitle">🪓 Derribo — Reglamento Zapopan</p><div style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px;">';
   h+=acord('d1','Art. I–V — Criterios generales',bChks(a,'ch_derribo',[['d','I. Inminente peligro de desplome (≤24h)'],['d','II. Enfermedad o plaga terminal sin posibilidad de recuperación'],['d','III. Daño comprobado a personas o infraestructura'],['w','IV. Levantamiento severo de aceras y guarniciones'],['','V. Requerimiento de obra pública prioritaria']]));
   h+=acord('d2','Art. VI–VIII — Criterios adicionales',bChks(a,'ch_derribo',[['','VI. Ordenamiento o reordenamiento territorial'],['w','VII. Dictamen de protección civil por riesgo estructural'],['','VIII. Proyectos privados con autorización municipal']]));
   h+='</div>';
-  h+='<p class="stitle">📋 NAE-SEMADES 001/2003</p>';
-  h+='<div style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px;">';
+  h+='<p class="stitle">📋 NAE-SEMADES 001/2003</p><div style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px;">';
   h+=acord('nae1','Trasplante — 5.4.1 al 5.4.7',bChks(a,'ch_nae_tras',[['','5.4.1 El fuste de grosor invade banquetas o caminos peatonales'],['','5.4.2 Ubicado en camellones o cruceros generando falta de visibilidad'],['','5.4.3 Obstruye acceso a cochera o entrada vehicular'],['w','5.4.4 Puede ocasionar daños a bienes públicos o privados'],['','5.4.5 Requerido por obra de ingeniería civil de interés público'],['','5.4.6 Remodelación o rehabilitación de áreas verdes'],['','5.4.7 Proyecto arquitectónico que permite su reubicación']]));
   h+=acord('nae2','Derribo — 5.6.1 al 5.6.8',bChks(a,'ch_nae_der',[['w','5.6.1 Fuste de grosor obstruye circulación peatonal o vehicular'],['w','5.6.2 Ubicado en camellones o cruceros provocando accidentes viales'],['w','5.6.3 Obstruye acceso a cochera o entrada vehicular'],['d','5.6.4 Raíces dañan cimientos, bardas o cañerías'],['d','5.6.5 Raíces levantan carpeta asfáltica o banquetas'],['d','5.6.6 Árbol sobremaduro que obstruye líneas eléctricas de alta tensión'],['d','5.6.7 Árbol en turno fisiológico avanzado con riesgo para la vía pública'],['','5.6.8 Requerido por obra de ingeniería civil de interés público']]));
   h+='</div>';
@@ -500,256 +415,397 @@ function renderResumen(){
   c.innerHTML=arboles.map(function(a,i){var pr=getProg(a),bc=getBadge(a);return'<div class="res-item" style="margin-bottom:8px;" onclick="goTab(1);selArbol('+i+')"><div><div style="font-weight:700;font-size:15px;">🌳 '+a.nombre+(a.especie?' <span style="font-weight:400;color:var(--gm);font-size:13px;">'+a.especie+'</span>':'')+'</div><div style="font-size:12px;color:var(--gm);margin-top:3px;">'+pr.done+'/'+pr.total+' campos · '+(a._pts||0)+' pts</div></div><span class="abadge '+bc[0]+'">'+bc[1]+'</span></div>';}).join('');
 }
 
+// ══════════════════════════════════════════
+// GENERACIÓN DE PDF
+// ══════════════════════════════════════════
 function generarPDF(returnBlob){
   var folio=g('folio')?g('folio').value:'',sup=g('sup')?g('sup').value:'',prog=g('prog')?g('prog').value:'',fecha=g('fecha')?g('fecha').value:'',obs=g('obs')?g('obs').value:'';
   var jsPDF=window.jspdf.jsPDF,doc=new jsPDF({orientation:'portrait',unit:'mm',format:'letter'});
-  var W=215.9,M=14,cW=W-M*2,y=M;
-  var NA=[244,121,32],VRD=[45,106,45],BLC=[255,255,255],GR=[80,80,80],VL=[74,155,74],RO=[184,41,41],AM=[200,130,10],AZ=[27,77,142],NK=[26,26,26],GC=[200,200,200];
+  var W=215.9,M=16,cW=W-M*2,y=M;
+  var LH=8;  // line height base para campos
+  var NA=[244,121,32],VRD=[45,106,45],BLC=[255,255,255],GR=[100,100,100],VL=[74,155,74],RO=[184,41,41],AM=[200,130,10],AZ=[27,77,142],NK=[30,30,30],GC=[210,210,210];
 
-  function chkPg(n){if(y+n>doc.internal.pageSize.height-14){doc.addPage();cabecera();}}
+  var PH=doc.internal.pageSize.height;
+  function chkPg(n){if(y+n>PH-16){doc.addPage();cabecera();}}
 
-  function dibujarLogo(x,y,tam){
-    doc.setFillColor.apply(doc,NA);doc.roundedRect(x,y,tam,tam,2,2,'F');
+  function dibujarLogo(x,ly,tam){
+    doc.setFillColor.apply(doc,NA);doc.roundedRect(x,ly,tam,tam,2,2,'F');
     var cx=x+tam/2;
     doc.setDrawColor.apply(doc,BLC);doc.setLineWidth(1.2);
-    doc.roundedRect(x+tam*0.28,y+tam*0.18,tam*0.44,tam*0.52,1,1,'S');
-    doc.line(cx-tam*0.14,y+tam*0.18,cx-tam*0.14,y+tam*0.11);
-    doc.line(cx-tam*0.14,y+tam*0.11,cx-tam*0.07,y+tam*0.145);
-    doc.line(cx-tam*0.07,y+tam*0.145,cx,y+tam*0.09);
-    doc.line(cx,y+tam*0.09,cx+tam*0.07,y+tam*0.145);
-    doc.line(cx+tam*0.07,y+tam*0.145,cx+tam*0.14,y+tam*0.11);
-    doc.line(cx+tam*0.14,y+tam*0.11,cx+tam*0.14,y+tam*0.18);
-    doc.setFillColor.apply(doc,BLC);doc.circle(cx,y+tam*0.085,1,'F');
-    doc.setLineWidth(1.8);doc.line(cx,y+tam*0.58,cx,y+tam*0.38);
-    doc.setLineWidth(1.2);doc.circle(cx,y+tam*0.33,tam*0.1,'S');
-    doc.ellipse(cx-tam*0.03,y+tam*0.32,tam*0.018,tam*0.028,'F');
-    doc.ellipse(cx+tam*0.03,y+tam*0.32,tam*0.018,tam*0.028,'F');
-    doc.ellipse(cx-tam*0.07,y+tam*0.52,tam*0.07,tam*0.033,'F');
-    doc.circle(cx+tam*0.02,y+tam*0.49,tam*0.028,'F');
-    doc.ellipse(cx+tam*0.055,y+tam*0.495,tam*0.017,tam*0.012,'F');
+    doc.roundedRect(x+tam*0.28,ly+tam*0.18,tam*0.44,tam*0.52,1,1,'S');
+    doc.line(cx-tam*0.14,ly+tam*0.18,cx-tam*0.14,ly+tam*0.11);
+    doc.line(cx-tam*0.14,ly+tam*0.11,cx-tam*0.07,ly+tam*0.145);
+    doc.line(cx-tam*0.07,ly+tam*0.145,cx,ly+tam*0.09);
+    doc.line(cx,ly+tam*0.09,cx+tam*0.07,ly+tam*0.145);
+    doc.line(cx+tam*0.07,ly+tam*0.145,cx+tam*0.14,ly+tam*0.11);
+    doc.line(cx+tam*0.14,ly+tam*0.11,cx+tam*0.14,ly+tam*0.18);
+    doc.setFillColor.apply(doc,BLC);doc.circle(cx,ly+tam*0.085,1,'F');
+    doc.setLineWidth(1.8);doc.line(cx,ly+tam*0.58,cx,ly+tam*0.38);
+    doc.setLineWidth(1.2);doc.circle(cx,ly+tam*0.33,tam*0.1,'S');
+    doc.ellipse(cx-tam*0.03,ly+tam*0.32,tam*0.018,tam*0.028,'F');
+    doc.ellipse(cx+tam*0.03,ly+tam*0.32,tam*0.018,tam*0.028,'F');
+    doc.ellipse(cx-tam*0.07,ly+tam*0.52,tam*0.07,tam*0.033,'F');
+    doc.circle(cx+tam*0.02,ly+tam*0.49,tam*0.028,'F');
+    doc.ellipse(cx+tam*0.055,ly+tam*0.495,tam*0.017,tam*0.012,'F');
     doc.setLineWidth(0.9);
-    doc.line(cx-tam*0.09,y+tam*0.55,cx-tam*0.11,y+tam*0.59);
-    doc.line(cx-tam*0.05,y+tam*0.555,cx-tam*0.07,y+tam*0.595);
-    doc.line(cx-tam*0.13,y+tam*0.538,cx-tam*0.155,y+tam*0.578);
-    doc.line(cx-tam*0.10,y+tam*0.545,cx-tam*0.125,y+tam*0.585);
-    doc.line(cx-tam*0.13,y+tam*0.505,cx-tam*0.17,y+tam*0.47);
+    doc.line(cx-tam*0.09,ly+tam*0.55,cx-tam*0.11,ly+tam*0.59);
+    doc.line(cx-tam*0.05,ly+tam*0.555,cx-tam*0.07,ly+tam*0.595);
+    doc.line(cx-tam*0.13,ly+tam*0.538,cx-tam*0.155,ly+tam*0.578);
+    doc.line(cx-tam*0.10,ly+tam*0.545,cx-tam*0.125,ly+tam*0.585);
+    doc.line(cx-tam*0.13,ly+tam*0.505,cx-tam*0.17,ly+tam*0.47);
     doc.setFont('helvetica','normal');doc.setFontSize(5);doc.setTextColor.apply(doc,BLC);
-    doc.text('Gobierno de',x+tam/2,y+tam*0.82,'center');
+    doc.text('Gobierno de',x+tam/2,ly+tam*0.82,'center');
     doc.setFont('helvetica','bold');doc.setFontSize(7);
-    doc.text('Zapopan',x+tam/2,y+tam*0.92,'center');
+    doc.text('Zapopan',x+tam/2,ly+tam*0.92,'center');
   }
 
   function cabecera(){
-    var lt=18;
-    doc.setFillColor.apply(doc,NA);doc.rect(0,0,W,7,'F');
-    doc.setTextColor.apply(doc,BLC);doc.setFont('helvetica','normal');doc.setFontSize(6);
-    doc.text('H. Ayuntamiento de Zapopan, Jalisco  ·  Administración 2024–2027',W/2,4.5,'center');
-    doc.setFillColor(255,255,255);doc.rect(0,7,W,lt+6,'F');
-    dibujarLogo(M,8,lt);dibujarLogo(W-M-lt,8,lt);
-    doc.setFont('helvetica','bold');doc.setFontSize(11);doc.setTextColor.apply(doc,NA);
-    doc.text('DICTAMEN FORESTAL',W/2,14,'center');
-    doc.setFontSize(8);doc.setTextColor.apply(doc,VRD);
-    doc.text('Dirección de Parques y Jardines',W/2,18.5,'center');
-    doc.setFont('helvetica','normal');doc.setFontSize(7);doc.setTextColor.apply(doc,GR);
-    doc.text('Coordinación de Arbolado Urbano',W/2,22,'center');
-    doc.setFillColor.apply(doc,VRD);doc.rect(0,7+lt+2,W,7,'F');
-    doc.setTextColor.apply(doc,BLC);doc.setFont('helvetica','bold');doc.setFontSize(6.5);
-    doc.text('Folio: '+folio,M+2,7+lt+6);
-    doc.text('Fecha: '+fecha,W/2,7+lt+6,'center');
-    doc.text('Supervisor/a: '+sup,W-M-2,7+lt+6,'right');
-    doc.setDrawColor.apply(doc,NA);doc.setLineWidth(0.5);doc.line(0,7+lt+9,W,7+lt+9);
-    y=7+lt+13;
+    var lt=20;
+    doc.setFillColor.apply(doc,NA);doc.rect(0,0,W,8,'F');
+    doc.setTextColor.apply(doc,BLC);doc.setFont('helvetica','normal');doc.setFontSize(6.5);
+    doc.text('H. Ayuntamiento de Zapopan, Jalisco  ·  Administración 2024–2027',W/2,5,'center');
+    doc.setFillColor(255,255,255);doc.rect(0,8,W,lt+6,'F');
+    dibujarLogo(M,9,lt);dibujarLogo(W-M-lt,9,lt);
+    doc.setFont('helvetica','bold');doc.setFontSize(12);doc.setTextColor.apply(doc,NA);
+    doc.text('DICTAMEN FORESTAL',W/2,16,'center');
+    doc.setFontSize(8.5);doc.setTextColor.apply(doc,VRD);
+    doc.text('Dirección de Parques y Jardines',W/2,21,'center');
+    doc.setFont('helvetica','normal');doc.setFontSize(7.5);doc.setTextColor.apply(doc,GR);
+    doc.text('Coordinación de Arbolado Urbano',W/2,25,'center');
+    doc.setFillColor.apply(doc,VRD);doc.rect(0,8+lt+3,W,8,'F');
+    doc.setTextColor.apply(doc,BLC);doc.setFont('helvetica','bold');doc.setFontSize(7.5);
+    doc.text('Folio: '+folio,M+2,8+lt+8);
+    doc.text('Fecha: '+fecha,W/2,8+lt+8,'center');
+    doc.text('Supervisor/a: '+sup,W-M-2,8+lt+8,'right');
+    doc.setDrawColor.apply(doc,NA);doc.setLineWidth(0.5);doc.line(0,8+lt+11,W,8+lt+11);
+    y=8+lt+16;
   }
 
+  // ── Sección encabezado ──
   function seccion(titulo,col){
-    chkPg(10);doc.setFillColor.apply(doc,col);doc.rect(M,y,cW,7,'F');
-    doc.setTextColor.apply(doc,BLC);doc.setFontSize(9);doc.setFont('helvetica','bold');
-    doc.text(titulo,M+3,y+4.8);y+=7;
-    doc.setTextColor.apply(doc,NK);doc.setFont('helvetica','normal');doc.setFontSize(8);
+    chkPg(12);
+    doc.setFillColor.apply(doc,col);doc.rect(M,y,cW,8,'F');
+    doc.setTextColor.apply(doc,BLC);doc.setFontSize(9.5);doc.setFont('helvetica','bold');
+    doc.text(titulo,M+3,y+5.5);
+    y+=8;
+    doc.setTextColor.apply(doc,NK);doc.setFont('helvetica','normal');doc.setFontSize(8.5);
+    y+=2; // espacio post-header
   }
+
+  // ── Fila de dos campos ──
   function campo2(l1,v1,l2,v2){
+    chkPg(LH);
+    var col1=M+cW*0.5;
     doc.setFont('helvetica','bold');doc.setFontSize(7);doc.setTextColor.apply(doc,GR);
-    doc.text(l1+':',M+2,y+3.5);
-    doc.setFont('helvetica','normal');doc.setFontSize(7.5);doc.setTextColor.apply(doc,NK);
-    doc.text((v1||'—').slice(0,28),M+24,y+3.5);
+    doc.text(l1+':',M+2,y+4.5);
+    doc.setFont('helvetica','normal');doc.setFontSize(8);doc.setTextColor.apply(doc,NK);
+    doc.text((v1||'—').slice(0,26),M+30,y+4.5);
     doc.setFont('helvetica','bold');doc.setFontSize(7);doc.setTextColor.apply(doc,GR);
-    doc.text(l2+':',M+cW/2+2,y+3.5);
-    doc.setFont('helvetica','normal');doc.setFontSize(7.5);doc.setTextColor.apply(doc,NK);
-    doc.text((v2||'—').slice(0,24),M+cW/2+22,y+3.5);
-    y+=7;
+    doc.text(l2+':',col1+2,y+4.5);
+    doc.setFont('helvetica','normal');doc.setFontSize(8);doc.setTextColor.apply(doc,NK);
+    doc.text((v2||'—').slice(0,22),col1+28,y+4.5);
+    doc.setDrawColor.apply(doc,GC);doc.setLineWidth(0.15);doc.line(M,y+LH,M+cW,y+LH);
+    y+=LH;
   }
+
+  // ── Campo de una línea completo ──
   function campo1(label,val){
+    var lines=doc.splitTextToSize(val||'—',cW-34);
+    var h=Math.max(LH,lines.length*5+3);
+    chkPg(h);
     doc.setFont('helvetica','bold');doc.setFontSize(7);doc.setTextColor.apply(doc,GR);
-    doc.text(label+':',M+2,y+3.5);
-    doc.setFont('helvetica','normal');doc.setFontSize(7.5);doc.setTextColor.apply(doc,NK);
-    var lines=doc.splitTextToSize(val||'—',cW-26);
-    lines.forEach(function(ln,li){doc.text(ln,M+24,y+3.5+(li*5));});
-    y+=5*lines.length+2;
+    doc.text(label+':',M+2,y+4.5);
+    doc.setFont('helvetica','normal');doc.setFontSize(8);doc.setTextColor.apply(doc,NK);
+    lines.forEach(function(ln,li){doc.text(ln,M+34,y+4.5+(li*5));});
+    doc.setDrawColor.apply(doc,GC);doc.setLineWidth(0.15);doc.line(M,y+h,M+cW,y+h);
+    y+=h;
   }
+
+  // ── Lista con viñeta ──
   function lista(items){
-    if(!items||!items.length){doc.setTextColor.apply(doc,GR);doc.text('Sin registros',M+5,y+3.5);y+=5;return;}
+    if(!items||!items.length){
+      chkPg(7);doc.setTextColor.apply(doc,GR);doc.setFontSize(8);doc.setFont('helvetica','italic');
+      doc.text('Sin registros',M+6,y+5);doc.setFont('helvetica','normal');y+=7;return;
+    }
     items.forEach(function(it){
-      chkPg(6);doc.setFillColor.apply(doc,VL);doc.circle(M+5,y+3,1.2,'F');
-      doc.setTextColor.apply(doc,NK);
-      var lines=doc.splitTextToSize(it,cW-14);
-      lines.forEach(function(ln,li){doc.text(ln,M+9,y+3.5+(li*4));});
-      y+=4*lines.length;
+      var lines=doc.splitTextToSize(it,cW-16);
+      var h=lines.length*5+3;
+      chkPg(h);
+      doc.setFillColor.apply(doc,VL);doc.circle(M+5,y+4,1.4,'F');
+      doc.setTextColor.apply(doc,NK);doc.setFontSize(8);doc.setFont('helvetica','normal');
+      lines.forEach(function(ln,li){doc.text(ln,M+10,y+4.5+(li*5));});
+      y+=h;
     });
   }
 
+  // ── Subtítulo de grupo ──
+  function subgr(txt,col){
+    chkPg(9);
+    doc.setFont('helvetica','bold');doc.setFontSize(8);doc.setTextColor.apply(doc,col);
+    doc.text(txt,M+3,y+5);y+=8;
+    doc.setFont('helvetica','normal');doc.setTextColor.apply(doc,NK);
+  }
+
+  // ══════════════════════════════════════════
+  // CROQUIS VECTORIAL — dibujado con jsPDF
+  // sin canvas ni CORS
+  // ══════════════════════════════════════════
+  function dibujarCroquis(){
+    if(!marcadores||!marcadores.length)return;
+    chkPg(110);
+    seccion('5. CROQUIS DE GEORREFERENCIACIÓN',AZ);
+
+    var mX=M,mY=y,mW=cW,mH=80;
+
+    // Calcular bounding box de coordenadas
+    var lats=marcadores.map(function(o){return o.lat;});
+    var lngs=marcadores.map(function(o){return o.lng;});
+    var minLat=Math.min.apply(null,lats),maxLat=Math.max.apply(null,lats);
+    var minLng=Math.min.apply(null,lngs),maxLng=Math.max.apply(null,lngs);
+    // Añadir margen
+    var dLat=maxLat-minLat||0.001,dLng=maxLng-minLng||0.001;
+    var pad=0.25;
+    minLat-=dLat*pad;maxLat+=dLat*pad;
+    minLng-=dLng*pad;maxLng+=dLng*pad;
+
+    // Fondo del mapa
+    doc.setFillColor(232,240,232);doc.rect(mX,mY,mW,mH,'F');
+    doc.setDrawColor.apply(doc,GC);doc.setLineWidth(0.4);doc.rect(mX,mY,mW,mH,'S');
+
+    // Grid de referencia (lineas tenues)
+    doc.setDrawColor(200,215,200);doc.setLineWidth(0.2);
+    for(var gi=1;gi<4;gi++){
+      doc.line(mX+mW*gi/4,mY,mX+mW*gi/4,mY+mH);
+      doc.line(mX,mY+mH*gi/4,mX+mW,mY+mH*gi/4);
+    }
+
+    // Función coordenada → px en el mapa
+    function toMmX(lng){return mX+((lng-minLng)/(maxLng-minLng))*mW;}
+    function toMmY(lat){return mY+mH-((lat-minLat)/(maxLat-minLat))*mH;}
+
+    // Línea entre marcadores si hay más de uno
+    if(marcadores.length>1){
+      doc.setDrawColor(100,160,100);doc.setLineWidth(0.5);
+      for(var li=0;li<marcadores.length-1;li++){
+        doc.line(toMmX(marcadores[li].lng),toMmY(marcadores[li].lat),
+                 toMmX(marcadores[li+1].lng),toMmY(marcadores[li+1].lat));
+      }
+    }
+
+    // Marcadores
+    marcadores.forEach(function(o,i){
+      var px=toMmX(o.lng),py=toMmY(o.lat);
+      // Sombra
+      doc.setFillColor(0,0,0);doc.setDrawColor(0,0,0);
+      doc.circle(px+0.4,py+0.4,4,'F');
+      // Círculo verde
+      doc.setFillColor.apply(doc,VRD);doc.setDrawColor(255,255,255);doc.setLineWidth(0.5);
+      doc.circle(px,py,4,'FD');
+      // Número
+      doc.setFont('helvetica','bold');doc.setFontSize(6);doc.setTextColor(255,255,255);
+      doc.text(String(i+1),px,py+1.2,'center');
+    });
+
+    // Leyenda en esquina inferior izquierda
+    doc.setFillColor(255,255,255);doc.setDrawColor.apply(doc,GC);doc.setLineWidth(0.3);
+    doc.roundedRect(mX+2,mY+mH-14,38,12,1,1,'FD');
+    doc.setFont('helvetica','bold');doc.setFontSize(6);doc.setTextColor.apply(doc,NK);
+    doc.text('Leyenda',mX+4,mY+mH-10);
+    doc.setFillColor.apply(doc,VRD);doc.circle(mX+5,mY+mH-6,2,'F');
+    doc.setFont('helvetica','normal');doc.setFontSize(5.5);
+    doc.text('Árbol marcado',mX+9,mY+mH-5);
+
+    // Norte
+    doc.setFont('helvetica','bold');doc.setFontSize(9);doc.setTextColor.apply(doc,NK);
+    doc.text('N',mX+mW-6,mY+6,'center');
+    doc.setDrawColor.apply(doc,NK);doc.setLineWidth(0.5);
+    doc.line(mX+mW-6,mY+7,mX+mW-6,mY+12);
+    doc.triangle(mX+mW-8,mY+7,mX+mW-4,mY+7,mX+mW-6,mY+4,'F');
+
+    y+=mH+4;
+
+    // Tabla de coordenadas
+    doc.setFont('helvetica','bold');doc.setFontSize(7.5);doc.setTextColor.apply(doc,GR);
+    doc.text('Coordenadas registradas:',M+2,y+4);y+=7;
+    marcadores.forEach(function(o,i){
+      chkPg(6);
+      doc.setFillColor.apply(doc,VRD);doc.circle(M+5,y+3.5,1.4,'F');
+      doc.setFont('helvetica','normal');doc.setFontSize(8);doc.setTextColor.apply(doc,NK);
+      doc.text('Árbol #'+(i+1)+'   Lat: '+o.lat.toFixed(6)+'   Lng: '+o.lng.toFixed(6),M+10,y+4);
+      y+=6;
+    });
+    y+=4;
+  }
+
+  // ══════════════════════════════════════════
+  // BLOQUE POR ÁRBOL
+  // ══════════════════════════════════════════
   function bloqueArbol(a,num,total){
-    chkPg(16);
-    doc.setFillColor(240,248,240);doc.rect(M,y,cW,10,'F');
-    doc.setDrawColor.apply(doc,VL);doc.setLineWidth(0.5);doc.rect(M,y,cW,10,'S');
-    doc.setFont('helvetica','bold');doc.setFontSize(10);doc.setTextColor.apply(doc,VRD);
-    doc.text('ÁRBOL '+num+' de '+total+' — '+a.nombre,M+4,y+6.5);
-    if(a.especie){doc.setFont('helvetica','italic');doc.setFontSize(8);doc.setTextColor.apply(doc,GR);doc.text(a.especie+(a.cientifico?' ('+a.cientifico+')':''),M+cW-3,y+6.5,'right');}
-    y+=13;
+    chkPg(18);
+    // Encabezado árbol
+    doc.setFillColor(235,248,235);doc.rect(M,y,cW,11,'F');
+    doc.setDrawColor.apply(doc,VL);doc.setLineWidth(0.5);doc.rect(M,y,cW,11,'S');
+    doc.setFont('helvetica','bold');doc.setFontSize(11);doc.setTextColor.apply(doc,VRD);
+    doc.text('ÁRBOL '+num+' de '+total+' — '+a.nombre,M+4,y+7.5);
+    if(a.especie){doc.setFont('helvetica','italic');doc.setFontSize(8.5);doc.setTextColor.apply(doc,GR);doc.text(a.especie+(a.cientifico?' ('+a.cientifico+')':''),M+cW-2,y+7.5,'right');}
+    y+=14;
+
     seccion('1. DATOS GENERALES',VRD);
-    campo1('Árbol',a.nombre);
     campo2('Especie',a.especie,'Estado físico',a.estado);
     campo1('Nombre científico',a.cientifico);
     campo2('Altura',(a.altura?a.altura+' m':'—'),'DAP',(a.dap?a.dap+' cm':'—'));
     campo2('Fase fenológica',a.fase,'Ciclo biológico',a.ciclo);
     campo2('Ramificación',a.ram,'Sitio',a.sitio);
     campo2('Compensación biomasa',a.compensacion,'Requerimientos',(a.ch_req||[]).join(', ')||'—');
-    y+=2;
+    y+=4;
+
     seccion('2. EVALUACIÓN ESTRUCTURAL Y FITOSANITARIA',VL);
     var hayDef=false;
     [{label:'Sistema radicular',items:a.ch_raiz},{label:'Fuste',items:a.ch_fuste},{label:'Copa',items:a.ch_copa},{label:'Plagas y enfermedades',items:a.ch_plagas}].forEach(function(gr){
-      if(gr.items&&gr.items.length){hayDef=true;chkPg(8);doc.setFont('helvetica','bold');doc.setFontSize(8);doc.setTextColor.apply(doc,AZ);doc.text('▸ '+gr.label,M+3,y+3.5);y+=6;doc.setFont('helvetica','normal');doc.setTextColor.apply(doc,NK);lista(gr.items);}
+      if(gr.items&&gr.items.length){hayDef=true;subgr('▸ '+gr.label,AZ);lista(gr.items);}
     });
-    if(!hayDef){doc.setTextColor.apply(doc,GR);doc.setFontSize(8);doc.text('Sin defectos registrados',M+5,y+3.5);y+=6;}
-    y+=2;
-    if(a.ch_diana&&a.ch_diana.length){seccion('3. AFECTACIONES / DIANA',AZ);lista(a.ch_diana);y+=2;}
-    chkPg(16);
+    if(!hayDef){doc.setTextColor.apply(doc,GR);doc.setFontSize(8);doc.setFont('helvetica','italic');doc.text('Sin defectos registrados',M+5,y+5);doc.setFont('helvetica','normal');y+=8;}
+    y+=4;
+
+    if(a.ch_diana&&a.ch_diana.length){seccion('3. AFECTACIONES / DIANA',AZ);lista(a.ch_diana);y+=4;}
+
+    // Clasificación de riesgo
+    chkPg(20);
     if(a.riesgo==='alto'){
-      doc.setFillColor.apply(doc,RO);doc.roundedRect(M,y,cW,14,2,2,'F');
-      doc.setTextColor.apply(doc,BLC);doc.setFontSize(10);doc.setFont('helvetica','bold');
-      doc.text('⚠ RIESGO ALTO / EXTREMO',W/2,y+7,'center');
-      doc.setFontSize(8);doc.text('Puntaje total: '+(a._pts||0)+' puntos',W/2,y+12,'center');
+      doc.setFillColor.apply(doc,RO);doc.roundedRect(M,y,cW,16,2,2,'F');
+      doc.setTextColor.apply(doc,BLC);doc.setFontSize(11);doc.setFont('helvetica','bold');
+      doc.text('RIESGO ALTO / EXTREMO',W/2,y+8,'center');
+      doc.setFontSize(8.5);doc.text('Puntaje total: '+(a._pts||0)+' puntos',W/2,y+13,'center');
+    }else if(a.riesgo==='medio'){
+      doc.setFillColor(255,243,200);doc.roundedRect(M,y,cW,16,2,2,'F');
+      doc.setDrawColor.apply(doc,AM);doc.setLineWidth(0.5);doc.roundedRect(M,y,cW,16,2,2,'S');
+      doc.setTextColor.apply(doc,AM);doc.setFontSize(11);doc.setFont('helvetica','bold');
+      doc.text('RIESGO MEDIO',W/2,y+8,'center');
+      doc.setFontSize(8.5);doc.text('Puntaje total: '+(a._pts||0)+' puntos',W/2,y+13,'center');
     }else{
-      doc.setFillColor(235,235,235);doc.roundedRect(M,y,cW,14,2,2,'F');
-      doc.setTextColor.apply(doc,GR);doc.setFontSize(9);doc.setFont('helvetica','bold');
-      doc.text('Clasificación de riesgo: No Aplica',W/2,y+7,'center');
-      doc.setFontSize(8);doc.setFont('helvetica','normal');
-      doc.text('Puntaje total: '+(a._pts||0)+' puntos',W/2,y+12,'center');
+      doc.setFillColor(240,240,240);doc.roundedRect(M,y,cW,16,2,2,'F');
+      doc.setTextColor.apply(doc,GR);doc.setFontSize(10);doc.setFont('helvetica','bold');
+      doc.text('Clasificación: No Aplica',W/2,y+8,'center');
+      doc.setFontSize(8.5);doc.setFont('helvetica','normal');
+      doc.text('Puntaje total: '+(a._pts||0)+' puntos',W/2,y+13,'center');
     }
-    y+=18;
+    y+=20;
+
     var tP=a.ch_poda&&a.ch_poda.length,tD=(a.ch_derribo&&a.ch_derribo.length)||(a.ch_nae_der&&a.ch_nae_der.length),tT=a.ch_nae_tras&&a.ch_nae_tras.length;
     if(tP||tD||tT){
       seccion('4. MANEJO FORESTAL INDICADO',VRD);
-      if(tP){chkPg(8);doc.setFont('helvetica','bold');doc.setFontSize(8);doc.setTextColor.apply(doc,VRD);doc.text('✂ Poda — Reglamento Zapopan',M+3,y+3.5);y+=6;doc.setFont('helvetica','normal');doc.setTextColor.apply(doc,NK);lista(a.ch_poda);}
-      if(tD){chkPg(8);doc.setFont('helvetica','bold');doc.setFontSize(8);doc.setTextColor.apply(doc,RO);doc.text('✕ Derribo — Reglamento Zapopan / NAE-SEMADES',M+3,y+3.5);y+=6;doc.setFont('helvetica','normal');doc.setTextColor.apply(doc,NK);lista((a.ch_derribo||[]).concat(a.ch_nae_der||[]));}
-      if(tT){chkPg(8);doc.setFont('helvetica','bold');doc.setFontSize(8);doc.setTextColor.apply(doc,AZ);doc.text('↕ Trasplante — NAE-SEMADES 5.4',M+3,y+3.5);y+=6;doc.setFont('helvetica','normal');doc.setTextColor.apply(doc,NK);lista(a.ch_nae_tras);}
-      y+=2;
-    }
-
-    // ── SECCIÓN 5: CROQUIS DE GEORREFERENCIACIÓN ──
-    if(window._mapaImgB64 && marcadores && marcadores.length){
-      chkPg(85);
-      seccion('5. CROQUIS DE GEORREFERENCIACIÓN',AZ);
-      var mH=60,mW=cW;
-      try{
-        doc.addImage(window._mapaImgB64,'PNG',M,y,mW,mH);
-        doc.setDrawColor.apply(doc,GC);doc.setLineWidth(0.3);
-        doc.rect(M,y,mW,mH,'S');
-        y+=mH+3;
-        // Tabla de coordenadas
-        doc.setFont('helvetica','bold');doc.setFontSize(7);doc.setTextColor.apply(doc,GR);
-        doc.text('Coordenadas registradas:',M+2,y+3.5);
-        y+=6;
-        marcadores.forEach(function(o,i){
-          chkPg(6);
-          doc.setFillColor.apply(doc,VL);doc.circle(M+5,y+3,1.2,'F');
-          doc.setFont('helvetica','normal');doc.setFontSize(7);doc.setTextColor.apply(doc,NK);
-          doc.text('Árbol #'+(i+1)+'  Lat: '+o.lat.toFixed(6)+'   Lng: '+o.lng.toFixed(6),M+9,y+3.5);
-          y+=5;
-        });
-      }catch(e){
-        doc.setFontSize(8);doc.setTextColor.apply(doc,GR);doc.setFont('helvetica','italic');
-        doc.text('No fue posible insertar el croquis.',M+3,y+3.5);
-        y+=8;
-      }
+      if(tP){subgr('Poda — Reglamento Zapopan',VRD);lista(a.ch_poda);}
+      if(tD){subgr('Derribo — Reglamento Zapopan / NAE-SEMADES',RO);lista((a.ch_derribo||[]).concat(a.ch_nae_der||[]));}
+      if(tT){subgr('Trasplante — NAE-SEMADES 5.4',AZ);lista(a.ch_nae_tras);}
       y+=4;
     }
 
-    // ── SECCIÓN FOTOS (renumerada según si hay croquis) ──
-    var numFotos=(window._mapaImgB64&&marcadores&&marcadores.length)?'6':'5';
-    chkPg(50);seccion(numFotos+'. REGISTRO FOTOGRÁFICO',[68,68,68]);
-    if(fotosArr&&fotosArr.length>0){
-      var fW=(cW-8)/3,fH=fW*0.75,fx=M,fy=y;
-      fotosArr.forEach(function(src,fi){
-        chkPg(fH+4);
-        try{doc.addImage(src,'JPEG',fx,fy,fW-2,fH-2,undefined,'FAST');}catch(e){}
-        doc.setDrawColor.apply(doc,GC);doc.setLineWidth(0.3);doc.rect(fx,fy,fW-2,fH-2,'S');
-        doc.setFontSize(6);doc.setTextColor.apply(doc,GR);doc.text('Foto '+(fi+1),fx+(fW-2)/2,fy+fH-1,'center');
-        fx+=fW;if((fi+1)%3===0){fx=M;fy+=fH+2;y=fy;}
-      });
-      y=fy+fH+4;
-    }else{
-      doc.setFontSize(8);doc.setTextColor.apply(doc,GR);doc.setFont('helvetica','italic');
-      doc.text('Sin fotos registradas.',M+3,y+3.5);doc.setFont('helvetica','normal');y+=8;
-    }
+    // Croquis (solo en el primer árbol para no repetirlo)
+    if(num===1){dibujarCroquis();}
+
     if(a.notas||a.notas_r){
-      var numNotas=(window._mapaImgB64&&marcadores&&marcadores.length)?'7':'6';
-      seccion(numNotas+'. NOTAS',[68,68,68]);
-      if(a.notas){var l=doc.splitTextToSize(a.notas,cW-6);doc.text(l,M+3,y+3.5);y+=4*l.length+2;}
-      if(a.notas_r){var l2=doc.splitTextToSize('Resultado: '+a.notas_r,cW-6);doc.text(l2,M+3,y+3.5);y+=4*l2.length+2;}
+      var numNotas=num===1&&marcadores&&marcadores.length?'6':'5';
+      seccion(numNotas+'. NOTAS',[80,80,80]);
+      if(a.notas_r){var l2=doc.splitTextToSize('Resultado: '+a.notas_r,cW-6);doc.setFontSize(8);doc.text(l2,M+3,y+4);y+=5*l2.length+3;}
+      if(a.notas){var l=doc.splitTextToSize(a.notas,cW-6);doc.setFontSize(8);doc.text(l,M+3,y+4);y+=5*l.length+3;}
     }
   }
 
-  // ══ PORTADA ══
+  // ══════════════════════════════════════════
+  // PORTADA
+  // ══════════════════════════════════════════
   cabecera();
   seccion('RESUMEN DEL DICTAMEN',VRD);
   campo2('Total de árboles',String(arboles.length),'Folio',folio);
   campo2('Fecha',fecha,'Supervisor/a',sup);
-  if(obs){var lo=doc.splitTextToSize(obs,cW-6);doc.setFont('helvetica','normal');doc.setFontSize(8);doc.setTextColor.apply(doc,NK);doc.text(lo,M+3,y+3.5);y+=4*lo.length+2;}
+  campo2('Programa',prog,'Hora',g('hora')?g('hora').value:'');
+  if(obs){
+    chkPg(10);
+    var lo=doc.splitTextToSize(obs,cW-6);
+    doc.setFont('helvetica','normal');doc.setFontSize(8);doc.setTextColor.apply(doc,NK);
+    doc.text(lo,M+3,y+4);y+=5*lo.length+4;
+  }
   y+=4;
-  chkPg(10+arboles.length*8);
-  doc.setFont('helvetica','bold');doc.setFontSize(8);doc.setTextColor.apply(doc,VRD);
-  [{t:'No.',x:M+2},{t:'Árbol',x:M+12},{t:'Especie',x:M+46},{t:'Alt.',x:M+90},{t:'DAP',x:M+106},{t:'Estado',x:M+120},{t:'Clasificación',x:M+142},{t:'Manejo',x:M+170}].forEach(function(c){doc.text(c.t,c.x,y+4);});
-  doc.setDrawColor.apply(doc,VL);doc.setLineWidth(0.3);doc.line(M,y+6,M+cW,y+6);y+=8;
+
+  // Tabla resumen
+  chkPg(12+arboles.length*9);
+  var cols=[{t:'No.',x:M+2,w:10},{t:'Árbol',x:M+13,w:32},{t:'Especie',x:M+46,w:40},{t:'Alt.',x:M+88,w:14},{t:'DAP',x:M+103,w:15},{t:'Estado',x:M+119,w:18},{t:'Riesgo',x:M+138,w:22},{t:'Manejo',x:M+161,w:26}];
+  // Header tabla
+  doc.setFillColor(235,245,235);doc.rect(M,y,cW,8,'F');
+  doc.setFont('helvetica','bold');doc.setFontSize(7.5);doc.setTextColor.apply(doc,VRD);
+  cols.forEach(function(c){doc.text(c.t,c.x,y+5.5);});
+  doc.setDrawColor.apply(doc,VL);doc.setLineWidth(0.4);doc.line(M,y+8,M+cW,y+8);
+  y+=8;
+
   arboles.forEach(function(a,i){
-    chkPg(9);
+    chkPg(10);
     var manejos=[];
-    if(a.ch_poda&&a.ch_poda.length)manejos.push('✂ Poda');
-    if((a.ch_derribo&&a.ch_derribo.length)||(a.ch_nae_der&&a.ch_nae_der.length))manejos.push('✕ Derribo');
-    if(a.ch_nae_tras&&a.ch_nae_tras.length)manejos.push('↕ Trasplante');
+    if(a.ch_poda&&a.ch_poda.length)manejos.push('Poda');
+    if((a.ch_derribo&&a.ch_derribo.length)||(a.ch_nae_der&&a.ch_nae_der.length))manejos.push('Derribo');
+    if(a.ch_nae_tras&&a.ch_nae_tras.length)manejos.push('Trasplante');
     if(!manejos.length)manejos.push('Sin manejo');
+    var rh=Math.max(9,manejos.length*5+4);
+    if(i%2===0){doc.setFillColor(250,253,250);doc.rect(M,y,cW,rh,'F');}
     doc.setFont('helvetica','normal');doc.setFontSize(7.5);doc.setTextColor.apply(doc,NK);
-    doc.text(String(i+1),M+2,y+3.5);
-    doc.text((a.nombre||'—').slice(0,12),M+12,y+3.5);
-    doc.text((a.especie||'—').slice(0,16),M+46,y+3.5);
-    doc.text((a.altura?a.altura+' m':'—'),M+90,y+3.5);
-    doc.text((a.dap?a.dap+' cm':'—'),M+106,y+3.5);
-    doc.text((a.estado||'—').slice(0,8),M+120,y+3.5);
+    doc.text(String(i+1),cols[0].x,y+5.5);
+    doc.text((a.nombre||'—').slice(0,11),cols[1].x,y+5.5);
+    doc.text((a.especie||'—').slice(0,15),cols[2].x,y+5.5);
+    doc.text((a.altura?a.altura+' m':'—'),cols[3].x,y+5.5);
+    doc.text((a.dap?a.dap+' cm':'—'),cols[4].x,y+5.5);
+    doc.text((a.estado||'—').slice(0,7),cols[5].x,y+5.5);
     doc.setFont('helvetica','bold');
-    if(a.riesgo==='alto'){doc.setTextColor.apply(doc,RO);doc.text('ALTO',M+142,y+3.5);}
-    else{doc.setTextColor.apply(doc,GR);doc.text('No Aplica',M+142,y+3.5);}
+    if(a.riesgo==='alto'){doc.setTextColor.apply(doc,RO);doc.text('Alto',cols[6].x,y+5.5);}
+    else if(a.riesgo==='medio'){doc.setTextColor.apply(doc,AM);doc.text('Medio',cols[6].x,y+5.5);}
+    else{doc.setTextColor.apply(doc,GR);doc.text('N/A',cols[6].x,y+5.5);}
     doc.setFont('helvetica','normal');doc.setTextColor.apply(doc,NK);
-    manejos.forEach(function(m,mi){doc.text(m,M+170,y+3.5+(mi*4));});
-    var rh=6+(manejos.length>1?(manejos.length-1)*4:0);
-    doc.setDrawColor(220,220,220);doc.setLineWidth(0.2);doc.line(M,y+rh,M+cW,y+rh);y+=rh;
+    manejos.forEach(function(m,mi){doc.text(m,cols[7].x,y+5.5+(mi*5));});
+    doc.setDrawColor(225,235,225);doc.setLineWidth(0.2);doc.line(M,y+rh,M+cW,y+rh);
+    y+=rh;
   });
-  y+=6;
-  chkPg(40);
-  doc.setDrawColor.apply(doc,GC);doc.setLineWidth(0.3);doc.line(M,y+2,M+cW,y+2);y+=8;
+  y+=8;
+
+  // Firmas portada
+  chkPg(44);
+  doc.setDrawColor.apply(doc,GC);doc.setLineWidth(0.3);doc.line(M,y,M+cW,y);y+=6;
   doc.setFont('helvetica','bold');doc.setFontSize(10);doc.setTextColor.apply(doc,NA);
-  doc.text('VALIDACIÓN Y FIRMAS',W/2,y+5,'center');y+=12;
-  var fw=(cW-14)/2;
+  doc.text('VALIDACIÓN Y FIRMAS',W/2,y+5,'center');y+=14;
+  var fw=(cW-16)/2;
   doc.setDrawColor.apply(doc,NK);doc.setLineWidth(0.4);
-  doc.line(M,y+20,M+fw,y+20);doc.line(M+fw+14,y+20,M+fw*2+14,y+20);
-  doc.setFont('helvetica','bold');doc.setFontSize(8);doc.setTextColor.apply(doc,NK);
-  doc.text(sup||'Supervisor/a Forestal',M+fw/2,y+25,'center');
-  doc.text('Vo.Bo. / Jefe de Área',M+fw+14+fw/2,y+25,'center');
-  doc.setFont('helvetica','normal');doc.setFontSize(7);doc.setTextColor.apply(doc,GR);
-  doc.text('Nombre y cargo',M+fw/2,y+29,'center');
-  doc.text('Nombre y cargo',M+fw+14+fw/2,y+29,'center');
-  y+=36;
+  doc.line(M,y+22,M+fw,y+22);doc.line(M+fw+16,y+22,M+fw*2+16,y+22);
+  doc.setFont('helvetica','bold');doc.setFontSize(8.5);doc.setTextColor.apply(doc,NK);
+  doc.text(sup||'Supervisor/a Forestal',M+fw/2,y+27,'center');
+  doc.text('Vo.Bo. / Jefe de Área',M+fw+16+fw/2,y+27,'center');
+  doc.setFont('helvetica','normal');doc.setFontSize(7.5);doc.setTextColor.apply(doc,GR);
+  doc.text('Nombre y cargo',M+fw/2,y+32,'center');
+  doc.text('Nombre y cargo',M+fw+16+fw/2,y+32,'center');
+  y+=40;
   doc.setFontSize(7);doc.setTextColor.apply(doc,GR);
   doc.text('Generado el: '+new Date().toLocaleString('es-MX'),W/2,y,'center');
+
+  // ── Páginas por árbol (sin fotos) ──
   arboles.forEach(function(a,i){doc.addPage();cabecera();bloqueArbol(a,i+1,arboles.length);});
+
+  // ── Última página: REGISTRO FOTOGRÁFICO de todos los árboles ──
+  doc.addPage();cabecera();
+  seccion('REGISTRO FOTOGRÁFICO',[68,68,68]);
+  if(fotosArr&&fotosArr.length>0){
+    var fW=(cW-6)/3,fH=fW*0.78,fx=M,fy=y;
+    fotosArr.forEach(function(src,fi){
+      var needH=fH+10;
+      if(fx+fW>M+cW+1){fx=M;fy+=fH+10;}
+      chkPg(needH);
+      if(fy!==y&&fy+needH>PH-16){doc.addPage();cabecera();fy=y;fx=M;}
+      try{doc.addImage(src,'JPEG',fx,fy,fW-2,fH-2,undefined,'FAST');}catch(e){}
+      doc.setDrawColor.apply(doc,GC);doc.setLineWidth(0.3);doc.rect(fx,fy,fW-2,fH-2,'S');
+      doc.setFontSize(6.5);doc.setTextColor.apply(doc,GR);
+      doc.text('Foto '+(fi+1),fx+(fW-2)/2,fy+fH+1,'center');
+      fx+=fW;
+      if((fi+1)%3===0){fx=M;fy+=fH+8;}
+    });
+  }else{
+    doc.setFontSize(9);doc.setTextColor.apply(doc,GR);doc.setFont('helvetica','italic');
+    doc.text('Sin fotos registradas.',M+3,y+6);
+  }
 
   if(returnBlob)return doc.output('blob');
   doc.save('Dictamen_'+folio+'_'+fecha+'.pdf');
@@ -757,6 +813,9 @@ function generarPDF(returnBlob){
   return doc.output('blob');
 }
 
+// ══════════════════════════════════════════
+// MAPA
+// ══════════════════════════════════════════
 function iniciarMapa(){
   var mw=g('map-wrap');if(!mw||map)return;
   mw.innerHTML='<div id="lmap" style="width:100%;height:100%;"></div>';
@@ -766,11 +825,7 @@ function iniciarMapa(){
     document.head.appendChild(lk);
     setTimeout(function(){
       map=L.map('lmap').setView([20.7214,-103.4067],15);
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
-        attribution:'© OSM',
-        maxZoom:19,
-        crossOrigin:true
-      }).addTo(map);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OSM',maxZoom:19,crossOrigin:true}).addTo(map);
       map.on('click',function(e){
         if(!modoMarcado)return;
         addMarker(e.latlng.lat,e.latlng.lng);
@@ -802,7 +857,6 @@ if(!ok||!arboles.length){var fv='ZAP-'+String(Math.floor(Math.random()*900)+100)
 arboles.forEach(function(a){calcPts(a);});
 setSyncBadge('ok');
 
-// ── SERVICE WORKER ──
 if('serviceWorker' in navigator){
   window.addEventListener('load',function(){
     navigator.serviceWorker.register('./service-worker.js')
