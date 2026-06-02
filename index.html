@@ -321,11 +321,20 @@ function _enviarDictamen(){
   var folio=g('folio')?g('folio').value:'',fecha=g('fecha')?g('fecha').value:'',hora=g('hora')?g('hora').value:'',supervisor=g('sup')?g('sup').value:'',programa=g('prog')?g('prog').value:'',obs=g('obs')?g('obs').value:'';
   showModal('Generando dictamen…','Creando PDF y enviando a Drive…');
   setSyncBadge('sync');
-  var pdfBlob=generarPDF(true);
+  var pdfBlob;
+  try{pdfBlob=generarPDF(true);}
+  catch(err){
+    console.error('Error generando PDF:',err);
+    hideModal('❌','Error al generar PDF',err.message||'Revisa la consola');
+    setSyncBadge('err');return;
+  }
+  if(!pdfBlob){
+    hideModal('❌','Error','El PDF no se generó correctamente.');
+    setSyncBadge('err');return;
+  }
   var reader=new FileReader();
   reader.onload=function(ev){
     var b64=ev.target.result.split(',')[1];
-    // Content-Type: text/plain evita preflight CORS y Apps Script lo recibe correctamente
     var opts=function(body){return{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify(body)};};
     var p1=fetch(SCRIPT_URL,opts({tipo:'pdf',nombre:'Dictamen_'+folio+'_'+fecha+'.pdf',data:b64}))
       .catch(function(){return{ok:false};});
@@ -339,6 +348,7 @@ function _enviarDictamen(){
     .then(function(){setSyncBadge('ok');hideModal('✅','¡Dictamen enviado!','PDF y Sheets guardados en Drive');generarPDF(false);})
     .catch(function(){setSyncBadge('err');hideModal('❌','Error al enviar','PDF descargado localmente.');generarPDF(false);});
   };
+  reader.onerror=function(){hideModal('❌','Error','No se pudo leer el PDF generado.');setSyncBadge('err');};
   reader.readAsDataURL(pdfBlob);
 }
 
@@ -941,8 +951,13 @@ function generarPDF(returnBlob){
   doc.setFontSize(7.5);doc.setTextColor.apply(doc,GRAY);
   doc.text('🕐 Generado el: '+new Date().toLocaleString('es-MX'),W/2,y,'center');
 
-  toast('📋 PDF generado — '+arboles.length+' árbol(es)');
-  return doc.output('blob');
+  if(returnBlob){
+    return doc.output('blob');
+  } else {
+    doc.save('Dictamen_'+(folio||'ZAP')+'_'+(fecha||'').replace(/-/g,'')+ '.pdf');
+    toast('📋 PDF generado — '+arboles.length+' árbol(es)');
+    return null;
+  }
 }
 
 // ══════════════════════════════════════════
