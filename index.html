@@ -353,7 +353,7 @@ function _enviarDictamen(){
 }
 
 function nuevoArbol(n){return{id:Date.now()+'_'+n,nombre:'Árbol '+n,especie:'',cientifico:'',altura:'',dap:'',fase:null,estado:null,ciclo:null,ram:null,ch_raiz:[],ch_fuste:[],ch_copa:[],ch_plagas:[],ch_diana:[],sitio:null,ch_req:[],ch_poda:[],ch_derribo:[],ch_nae_tras:[],ch_nae_der:[],compensacion:null,riesgo:null,notas:'',notas_r:'',_pts:0};}
-function calcPts(a){var p=a.ch_raiz.length+a.ch_fuste.length+a.ch_copa.length+a.ch_plagas.length;if(a.ch_diana.length>0)p+=1;if(a.sitio)p+=1;a._pts=p;if(p<=3)a.riesgo='bajo';else if(p<=8)a.riesgo='medio';else a.riesgo='alto';}
+function calcPts(a){var p=a.ch_raiz.length+a.ch_fuste.length+a.ch_copa.length+(a.ch_plagas?a.ch_plagas.length:0);if(a.ch_diana.length>0)p+=1;if(a.sitio)p+=1;a._pts=p;if(p<=5)a.riesgo='bajo';else if(p<=16)a.riesgo='medio';else a.riesgo='alto';}
 function getProg(a){var d=0;if(a.especie)d++;if(a.estado)d++;if(a.ch_raiz.length||a.ch_fuste.length)d++;if(a.ch_copa.length||a.ch_plagas.length)d++;if(a.sitio||a.ch_diana.length)d++;if(a.riesgo)d++;return{done:d,total:6};}
 function getBadge(a){if(!a.riesgo)return['bvac','—'];if(a.riesgo==='alto')return['balt','🔴 Alto'];if(a.riesgo==='medio')return['bmed','🟡 Medio'];return['bok','⚪ OK'];}
 
@@ -399,21 +399,20 @@ function buildArbol(id){
   h+=dCard(a,'ch_raiz','🌱 Sistema Radicular','vrd',[['w','Raíces levantando banqueta/pavimento'],['d','Raíces cortadas por obras'],['w','Espacio radicular reducido'],['d','Daño mecánico por vehículos']]);
   h+=dCard(a,'ch_fuste','🪵 Fuste','vrd',[['w','Corteza agrietada/fisuras'],['d','Grietas profundas'],['d','Cavidad/hueco'],['d','Pudrición visible'],['w','Exudados anómalos'],['d','Inclinación >30°'],['w','Corteza desprendida/cancros'],['d','Desgajado']]);
   h+=dCard(a,'ch_copa','🌿 Copa','vrd',[['w','Copa asimétrica'],['w','Ramas secas'],['d','Rama desgajada/colgante'],['w','Chupones post-desmoche'],['d','Horquillas incluidas'],['w','Historial desmoche drástico'],['w','Copa excesivamente densa']]);
-  h+=dCard(a,'ch_plagas','🍄 Plagas y enfermedades','am',[['w','Hongos de pudrición'],['w','Muérdago/parásitas'],['w','Barrenadores'],['w','Defoliadores'],['w','Descortezadores'],['w','Xilófagos'],['w','Bacterias/nemátodos']]);
   h+='<div class="card"><div class="ch az"><span class="ch-icon">🎯</span>Entorno y Diana</div><div class="cb">';
   h+='<p class="stitle">Afectaciones</p><div class="ckg c2" style="margin-bottom:10px">';
-  [['w','Banqueta'],['w','Piso'],['d','Cimiento'],['d','Muro'],['w','Cochera'],['w','Aljibe'],['w','Drenaje'],['w','Toma agua'],['d','Cables CFE'],['d','Cables conducción'],['w','Telecomunicaciones'],['w','Cancel']].forEach(function(v){h+=chk(a,'ch_diana',v[1],v[1],v[0]);});
+  [['w','Banqueta'],['w','Piso'],['d','Cimiento'],['d','Muro'],['w','Aljibe'],['w','Drenaje'],['w','Toma agua'],['d','Cables CFE'],['w','Cables de servicios'],['w','Luminaria'],['w','Machuelo']].forEach(function(v){h+=chk(a,'ch_diana',v[1],v[1],v[0]);});
   h+='</div><div class="ptbox v"><span style="font-size:13px;font-weight:600;color:var(--v)">Puntos diana</span><span style="font-size:22px;font-weight:700;color:var(--v)">'+(a.ch_diana.length>0?1:0)+'</span></div>';
   h+='<div class="sep"></div><p class="stitle">Sitio</p><div class="ckg c2" style="margin-bottom:10px">';
-  ['Camellón','Banqueta','Parque','Servidumbre','Interior','Predio municipal','Dependencia gobierno'].forEach(function(v){h+=excl(a,'sitio',v,v);});
-  h+='</div><p class="stitle">Requerimientos operativos</p><div class="ckg">';
-  ['Caída libre','Técnicas de cordaje','Canastilla'].forEach(function(v){h+=chk(a,'ch_req',v,v,'');});
+  ['Camellón','Banqueta','Parque','Servidumbre','Interior','Predio municipal','Dependencia gobierno','Escuela'].forEach(function(v){h+=excl(a,'sitio',v,v);});
+  h+='</div><p class="stitle">Operatividad: Requerimientos y entorno</p><div class="ckg">';
+  ['Caída libre','Técnicas de cordaje','Canastilla','Trabajo en altura','Cercanía a finca','Cercanía a poste','Cercanía a cableado'].forEach(function(v){h+=chk(a,'ch_req',v,v,'');});
   h+='</div></div></div>';
   h+='<div class="card"><div class="ch vrd"><span class="ch-icon">🏁</span>Resultado y Manejo</div><div class="cb">';
   var rC=a.riesgo||'bajo',rN=a.riesgo==='alto'?'🔴 RIESGO ALTO':a.riesgo==='medio'?'🟡 RIESGO MEDIO':'⚪ NO APLICA';
   h+='<div class="resbox '+rC+'"><div class="rptsl">Puntaje total</div><div class="rpts">'+(a._pts||0)+'</div><div class="rn">'+rN+'</div></div>';
   h+='<p class="stitle">Clasificación final</p><div class="rbg">';
-  [{k:'bajo',l:'No aplica',d:'0–3 pts'},{k:'medio',l:'Medio',d:'4–8 pts'},{k:'alto',l:'Alto',d:'9+ pts'}].forEach(function(r){
+  [{k:'bajo',l:'No aplica',d:'0–5 pts'},{k:'medio',l:'Medio',d:'6–16 pts'},{k:'alto',l:'Alto',d:'>16 pts'}].forEach(function(r){
     h+='<div class="rbtn '+r.k+(a.riesgo===r.k?' sel':'')+'" onclick="setRiesgo(\''+r.k+'\')">'+'<div class="dot"></div><div class="rl">'+r.l+'</div><div class="rd2">'+r.d+'</div></div>';
   });
   h+='</div><div class="sep"></div>';
@@ -432,10 +431,8 @@ function buildArbol(id){
   h+=acord('nae1','Trasplante — 5.4.1 al 5.4.7',bChks(a,'ch_nae_tras',[['','5.4.1 El fuste de grosor invade banquetas o caminos peatonales'],['','5.4.2 Ubicado en camellones o cruceros generando falta de visibilidad'],['','5.4.3 Obstruye acceso a cochera o entrada vehicular'],['w','5.4.4 Puede ocasionar daños a bienes públicos o privados'],['','5.4.5 Requerido por obra de ingeniería civil de interés público'],['','5.4.6 Remodelación o rehabilitación de áreas verdes'],['','5.4.7 Proyecto arquitectónico que permite su reubicación']]));
   h+=acord('nae2','Derribo — 5.6.1 al 5.6.8',bChks(a,'ch_nae_der',[['w','5.6.1 Fuste de grosor obstruye circulación peatonal o vehicular'],['w','5.6.2 Ubicado en camellones o cruceros provocando accidentes viales'],['w','5.6.3 Obstruye acceso a cochera o entrada vehicular'],['d','5.6.4 Raíces dañan cimientos, bardas o cañerías'],['d','5.6.5 Raíces levantan carpeta asfáltica o banquetas'],['d','5.6.6 Árbol sobremaduro que obstruye líneas eléctricas de alta tensión'],['d','5.6.7 Árbol en turno fisiológico avanzado con riesgo para la vía pública'],['','5.6.8 Requerido por obra de ingeniería civil de interés público']]));
   h+='</div>';
-  h+='<p class="stitle">🌱 Compensación de biomasa</p><div class="ckg c2" style="margin-bottom:14px;">';
-  h+=excl(a,'compensacion','si','✅ Sí');h+=excl(a,'compensacion','no_aplica','✗ No aplica');
   h+='</div>';
-  h+='<div class="field"><label>Notas del resultado</label><textarea placeholder="Detalles de intervención…" oninput="sf(\'notas_r\',this.value)">'+esc(a.notas_r)+'</textarea></div>';
+
   h+='</div></div>';
   h+='<div class="card"><div class="ch gr"><span class="ch-icon">📝</span>Notas de campo</div><div class="cb"><div class="field"><textarea placeholder="Observaciones, historial…" oninput="sf(\'notas\',this.value)">'+esc(a.notas)+'</textarea></div></div></div>';
   return h;
@@ -710,7 +707,6 @@ function generarPDF(returnBlob){
     lcRow('Ciclo biológico',a.ciclo);
     lcRow('Ramificación',a.ram);
     lcRow('Sitio',a.sitio);
-    lcRow('Compensación biomasa',a.compensacion);
     yL=y;
 
     // ── COLUMNA DERECHA ──
@@ -746,7 +742,6 @@ function generarPDF(returnBlob){
     evalRow('Sistema radicular',a.ch_raiz,false);
     evalRow('Fuste',a.ch_fuste,true);
     evalRow('Copa',a.ch_copa,false);
-    evalRow('Plagas y enfermedades',a.ch_plagas,true);
     yR=y;
 
     // Continuar desde el max de ambas columnas
@@ -780,7 +775,7 @@ function generarPDF(returnBlob){
     doc.text('Puntaje total: '+(a._pts||0)+' puntos',M+halfW/2+4,rY+22,'center');
     // Escala
     var escY=rY+24;
-    var escItems=[{c:GREEN,l:'BAJO  0–2 pts'},{c:AMBER,l:'MEDIO  3–6 pts'},{c:[210,100,20],l:'ALTO  7–10 pts'},{c:RED,l:'EXTREMO  11–15 pts'}];
+    var escItems=[{c:GREEN,l:'NO APLICA  0–5 pts'},{c:AMBER,l:'MEDIO  6–16 pts'},{c:RED,l:'ALTO  >16 pts'}];
     escItems.forEach(function(e,i){
       doc.setFillColor.apply(doc,e.c);doc.circle(M+6,escY+i*3.8,1.2,'F');
       doc.setFont('helvetica','normal');doc.setFontSize(6.5);doc.setTextColor.apply(doc,DARK);
@@ -892,11 +887,6 @@ function generarPDF(returnBlob){
     var numNotas=idx===0&&marcadores&&marcadores.length?'6':'5';
     if(a.notas||a.notas_r){
       secHdr(numNotas+'. NOTAS',[80,80,80]);gap(1);
-      if(a.notas_r){
-        var lr=doc.splitTextToSize('Resultado: '+a.notas_r,cW-6);
-        chkPg(lr.length*5+3);doc.setFontSize(8);doc.setTextColor.apply(doc,DARK);
-        lr.forEach(function(l,i){doc.text(l,M+3,y+4+i*5);});y+=lr.length*5+4;
-      }
       if(a.notas){
         var ln=doc.splitTextToSize(a.notas,cW-6);
         chkPg(ln.length*5+3);doc.setFontSize(8);doc.setTextColor.apply(doc,DARK);
