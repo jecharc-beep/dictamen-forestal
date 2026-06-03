@@ -550,11 +550,12 @@ function generarPDF(returnBlob){
   function blist(items,yy){
     if(!items||!items.length){
       doc.setFont('helvetica','italic');doc.setFontSize(7.5);doc.setTextColor.apply(doc,GR);
-      doc.text('Sin registros',M+4,yy+4);return yy+6;
+      doc.text('Sin registros',M+4,yy+4);return yy+7;
     }
     items.forEach(function(it){
-      var s=doc.splitTextToSize('• '+String(it),cW-7);
-      var h=s.length*4.2+1;chk(h);
+      var s=doc.splitTextToSize('• '+String(it||''),cW-7);
+      var h=Math.max(6,s.length*4.2+2);
+      if(y+h>doc.internal.pageSize.height-12){doc.addPage();cabecera();}
       doc.setFont('helvetica','normal');doc.setFontSize(7.5);doc.setTextColor.apply(doc,BLK);
       s.forEach(function(l,i){doc.text(l,M+4,yy+4+i*4.2);});
       yy+=h;
@@ -586,7 +587,6 @@ function generarPDF(returnBlob){
   // Icono circular vectorial
   function icoCirc(x,yy,r,color,txt){
     doc.setFillColor.apply(doc,color);doc.circle(x,yy,r,'F');
-    if(txt){doc.setFont('helvetica','bold');doc.setFontSize(r*3.5);doc.setTextColor.apply(doc,WH);doc.text(txt,x,yy+r*1.1,'center');}
   }
 
   // gap
@@ -624,19 +624,19 @@ function generarPDF(returnBlob){
 
     // Folio
     doc.setFont('helvetica','bold');doc.setFontSize(6);doc.setTextColor(180,235,230);
-    doc.text('📋 FOLIO',M+1,33.5);
+    doc.text('  FOLIO',M+1,33.5);
     doc.setFont('helvetica','bold');doc.setFontSize(10);doc.setTextColor.apply(doc,WH);
     doc.text(folio||'—',M+1,38.5);
 
     // Fecha
     doc.setFont('helvetica','bold');doc.setFontSize(6);doc.setTextColor(180,235,230);
-    doc.text('📅 FECHA',W/3+2,33.5);
+    doc.text('  FECHA',W/3+2,33.5);
     doc.setFont('helvetica','bold');doc.setFontSize(10);doc.setTextColor.apply(doc,WH);
     doc.text(fecha||'—',W/3+2,38.5);
 
     // Supervisor
     doc.setFont('helvetica','bold');doc.setFontSize(6);doc.setTextColor(180,235,230);
-    doc.text('👤 SUPERVISOR(A)',W/3*2+2,33.5);
+    doc.text('  SUPERVISOR(A)',W/3*2+2,33.5);
     doc.setFont('helvetica','normal');doc.setFontSize(8.5);doc.setTextColor.apply(doc,WH);
     var sl=doc.splitTextToSize(sup||'—',W/3-4);
     doc.text(sl[0]||'',W/3*2+2,38.5);
@@ -644,12 +644,12 @@ function generarPDF(returnBlob){
     // Segunda fila: Programa
     doc.setFillColor(0,148,138);doc.rect(0,40,W,8,'F');
     doc.setFont('helvetica','bold');doc.setFontSize(6);doc.setTextColor(180,235,230);
-    doc.text('≡ PROGRAMA',M+1,43.5);
+    doc.text('  PROGRAMA',M+1,43.5);
     doc.setFont('helvetica','normal');doc.setFontSize(7.5);doc.setTextColor.apply(doc,WH);
     doc.text(prog||'—',M+1,47.5);
     if(hora){
       doc.setFont('helvetica','bold');doc.setFontSize(6);doc.setTextColor(180,235,230);
-      doc.text('🕐 HORA',W/3+2,43.5);
+      doc.text('  HORA',W/3+2,43.5);
       doc.setFont('helvetica','normal');doc.setFontSize(7.5);doc.setTextColor.apply(doc,WH);
       doc.text(hora,W/3+2,47.5);
     }
@@ -816,8 +816,9 @@ function generarPDF(returnBlob){
   ];
 
   function lcFila(label,val,x,shade,w){
-    var aw=w||hw2;
-    var s=doc.splitTextToSize(String(val||'—'),aw-lw2-1);
+    var aw=w||RCW/2;
+    var LW2=22;
+    var s=doc.splitTextToSize(String(val||'—'),aw-LW2-1);
     var h=Math.max(6.5,s.length*4+2.5);
     if(shade){doc.setFillColor.apply(doc,LG);}else{doc.setFillColor(255,255,255);}
     doc.rect(x,yR,aw,h,'F');
@@ -825,7 +826,7 @@ function generarPDF(returnBlob){
     doc.setFont('helvetica','bold');doc.setFontSize(6.5);doc.setTextColor.apply(doc,TEAL);
     doc.text(String(label||'')+':',x+1.5,yR+4);
     doc.setFont('helvetica','normal');doc.setFontSize(7.5);doc.setTextColor.apply(doc,BLK);
-    s.forEach(function(l,i){doc.text(l,x+lw2,yR+4+i*4);});
+    s.forEach(function(l,i){doc.text(l,x+LW2,yR+4+i*4);});
     return h;
   }
 
@@ -964,7 +965,7 @@ function generarPDF(returnBlob){
 
   // Timestamp
   doc.setFont('helvetica','normal');doc.setFontSize(7);doc.setTextColor.apply(doc,GR);
-  doc.text('🕐 Generado el: '+new Date().toLocaleString('es-MX'),W/2,y,'center');
+  doc.text('Generado el: '+new Date().toLocaleString('es-MX'),W/2,y,'center');
 
   // ════════════════════════════════════════
   // PÁGINAS POR ÁRBOL (desde árbol 1)
@@ -1120,7 +1121,7 @@ function generarPDF(returnBlob){
                (a.ch_nae_der&&a.ch_nae_der.length)||(a.ch_nae_tras&&a.ch_nae_tras.length);
     if(tieneM){
       chk(16);
-      doc.setFillColor([70,110,70]);rr(M,y,cW,7.5,1.2);
+      doc.setFillColor(70,110,70);rr(M,y,cW,7.5,1.2);
       doc.setFont('helvetica','bold');doc.setFontSize(7.8);doc.setTextColor.apply(doc,WH);
       doc.text('FUNDAMENTO NORMATIVO DEL MANEJO',M+2.5,y+5.2);y+=7.5;
       var allM=[].concat(a.ch_poda||[],a.ch_derribo||[],a.ch_nae_der||[],a.ch_nae_tras||[]);
@@ -1130,7 +1131,7 @@ function generarPDF(returnBlob){
     // ── Notas ──
     if(a.notas){
       chk(14);
-      doc.setFillColor([80,80,80]);rr(M,y,cW,7.5,1.2);
+      doc.setFillColor(80,80,80);rr(M,y,cW,7.5,1.2);
       doc.setFont('helvetica','bold');doc.setFontSize(7.8);doc.setTextColor.apply(doc,WH);
       doc.text('NOTAS DE CAMPO',M+2.5,y+5.2);y+=7.5;
       var nS=doc.splitTextToSize(a.notas,cW-6);
@@ -1234,7 +1235,7 @@ function generarPDF(returnBlob){
     if(fotosArr&&fotosArr.length){
       var nSec=idx===0&&marcadores&&marcadores.length?'6':'5';
       chk(18);
-      doc.setFillColor([70,70,70]);rr(M,y,cW,7.5,1.2);
+      doc.setFillColor(70,70,70);rr(M,y,cW,7.5,1.2);
       doc.setFont('helvetica','bold');doc.setFontSize(7.8);doc.setTextColor.apply(doc,WH);
       doc.text(nSec+'. REGISTRO FOTOGRÁFICO',M+2.5,y+5.2);y+=9;
 
