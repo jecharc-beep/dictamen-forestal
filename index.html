@@ -289,31 +289,62 @@ function cargarGuardado(){
 function finalizarDictamen(){
   if(!arboles.length){toast('⚠️ No hay árboles registrados');return;}
   window._mapaImgB64=null;
-  // Intentar precargar mapa de calles OSM antes de generar el PDF
+  window._callesNombres=[];
+
+  var afterMapa=function(){_enviarDictamen();};
+  var afterCalles=function(){
+    // Intentar precargar mapa OSM
+    if(marcadores&&marcadores.length){
+      var lats=marcadores.map(function(o){return o.lat;});
+      var lngs=marcadores.map(function(o){return o.lng;});
+      var cLat=(Math.min.apply(null,lats)+Math.max.apply(null,lats))/2;
+      var cLng=(Math.min.apply(null,lngs)+Math.max.apply(null,lngs))/2;
+      var span=Math.max(Math.max.apply(null,lats)-Math.min.apply(null,lats),
+                        Math.max.apply(null,lngs)-Math.min.apply(null,lngs));
+      var zoom=span>0.02?13:span>0.005?15:17;
+      var osmUrl='https://staticmap.openstreetmap.de/staticmap.php?center='+cLat+','+cLng+'&zoom='+zoom+'&size=600x300&format=png';
+      var img=new Image();img.crossOrigin='anonymous';
+      var done=false;
+      var doAfter=function(){if(!done){done=true;afterMapa();}};
+      img.onload=function(){
+        try{
+          var cv=document.createElement('canvas');cv.width=img.width;cv.height=img.height;
+          cv.getContext('2d').drawImage(img,0,0);
+          window._mapaImgB64=cv.toDataURL('image/jpeg',0.88);
+        }catch(e){window._mapaImgB64=null;}
+        doAfter();
+      };
+      img.onerror=function(){doAfter();};
+      img.src=osmUrl;
+      setTimeout(function(){doAfter();},5000);
+    } else {
+      afterMapa();
+    }
+  };
+
+  // Buscar nombres de calles cercanas con Overpass API
   if(marcadores&&marcadores.length){
-    var lats=marcadores.map(function(o){return o.lat;});
-    var lngs=marcadores.map(function(o){return o.lng;});
-    var cLat=(Math.min.apply(null,lats)+Math.max.apply(null,lats))/2;
-    var cLng=(Math.min.apply(null,lngs)+Math.max.apply(null,lngs))/2;
-    var span=Math.max(Math.max.apply(null,lats)-Math.min.apply(null,lats),
-                      Math.max.apply(null,lngs)-Math.min.apply(null,lngs));
-    var zoom=span>0.02?13:span>0.005?15:17;
-    var osmUrl='https://staticmap.openstreetmap.de/staticmap.php?center='+cLat+','+cLng+'&zoom='+zoom+'&size=600x300&format=png';
-    var img=new Image();img.crossOrigin='anonymous';
-    img.onload=function(){
-      try{
-        var cv=document.createElement('canvas');cv.width=img.width;cv.height=img.height;
-        cv.getContext('2d').drawImage(img,0,0);
-        window._mapaImgB64=cv.toDataURL('image/jpeg',0.88);
-      }catch(e){window._mapaImgB64=null;}
-      _enviarDictamen();
-    };
-    img.onerror=function(){window._mapaImgB64=null;_enviarDictamen();};
-    img.src=osmUrl;
-    // Timeout de seguridad: si OSM tarda más de 5s, continuar sin mapa
-    setTimeout(function(){if(!window._mapaImgB64){img.src='';_enviarDictamen();}},5000);
+    var lats2=marcadores.map(function(o){return o.lat;});
+    var lngs2=marcadores.map(function(o){return o.lng;});
+    var pad=0.003;
+    var bbox=(Math.min.apply(null,lats2)-pad)+','+(Math.min.apply(null,lngs2)-pad)+','+
+             (Math.max.apply(null,lats2)+pad)+','+(Math.max.apply(null,lngs2)+pad);
+    var query='[out:json][timeout:8];way["highway"]["name"]('+bbox+');out center;';
+    var url='https://overpass-api.de/api/interpreter?data='+encodeURIComponent(query);
+    fetch(url)
+      .then(function(r){return r.json();})
+      .then(function(data){
+        window._callesNombres=(data.elements||[]).map(function(el){
+          return{name:el.tags&&el.tags.name?el.tags.name:'',
+                 lat:el.center?el.center.lat:(el.lat||0),
+                 lng:el.center?el.center.lon:(el.lon||0)};
+        }).filter(function(cn){return cn.name&&cn.lat&&cn.lng;});
+        afterCalles();
+      })
+      .catch(function(){afterCalles();});
+    setTimeout(function(){if(!window._callesNombres.length){afterCalles();}},6000);
   } else {
-    _enviarDictamen();
+    afterCalles();
   }
 }
 
@@ -605,10 +636,18 @@ function generarPDF(returnBlob){
     doc.setFillColor(255,255,255);doc.rect(0,5,W,25,'F');
 
     // Logo GobZap izquierda
-    try{doc.addImage('data:image/jpeg;base64,'+IMG_GOBZAP,'JPEG',M,5.5,18,22);}catch(e){}
+    try{
+      // GobZap ratio real: 1.26 (ancho/alto) → 25x20mm
+      var gW=25,gH=20;
+      doc.addImage('data:image/jpeg;base64,'+IMG_GOBZAP,'JPEG',M,5.5+(22-gH)/2,gW,gH);
+    }catch(e){}
 
     // Logo Parques derecha
-    try{doc.addImage('data:image/jpeg;base64,'+IMG_PARQUES,'JPEG',W-M-38,6.5,38,14);}catch(e){}
+    try{
+      // Parques ratio real: 1.78 (ancho/alto) → 27x15mm
+      var pW=27,pH2=15;
+      doc.addImage('data:image/jpeg;base64,'+IMG_PARQUES,'JPEG',W-M-pW,7,pW,pH2);
+    }catch(e){}
 
     // Título central
     doc.setFont('helvetica','bold');doc.setFontSize(20);doc.setTextColor.apply(doc,BLK);
@@ -647,12 +686,7 @@ function generarPDF(returnBlob){
     doc.text('  PROGRAMA',M+1,43.5);
     doc.setFont('helvetica','normal');doc.setFontSize(7.5);doc.setTextColor.apply(doc,WH);
     doc.text(prog||'—',M+1,47.5);
-    if(hora){
-      doc.setFont('helvetica','bold');doc.setFontSize(6);doc.setTextColor(180,235,230);
-      doc.text('  HORA',W/3+2,43.5);
-      doc.setFont('helvetica','normal');doc.setFontSize(7.5);doc.setTextColor.apply(doc,WH);
-      doc.text(hora,W/3+2,47.5);
-    }
+
 
     // Línea naranja separadora
     doc.setDrawColor.apply(doc,ORG);doc.setLineWidth(0.8);doc.line(0,48,W,48);
@@ -777,157 +811,9 @@ function generarPDF(returnBlob){
     yL+=2;
   }
 
-  // ── COL DERECHA: 2. Ficha técnica del árbol ──
-  // (solo primer árbol en portada, resto en páginas individuales)
+  // Solo col izquierda en portada — secciones 2,3,4 van en páginas individuales
   var a0=arboles[0]||{};
-
-  doc.setFillColor.apply(doc,TEAL);rr(RX,yR,RCW,7.5,1.2);
-  doc.setFont('helvetica','bold');doc.setFontSize(7.8);doc.setTextColor.apply(doc,WH);
-  doc.text('2. FICHA TÉCNICA DEL ÁRBOL',RX+2.5,yR+5.2);yR+=7.5;
-
-  // Sub-encabezado árbol 1
-  doc.setFillColor.apply(doc,LG);doc.rect(RX,yR,RCW,8,'F');
-  doc.setDrawColor.apply(doc,GC);doc.setLineWidth(0.2);doc.rect(RX,yR,RCW,8,'S');
-  doc.setFont('helvetica','bold');doc.setFontSize(8.5);doc.setTextColor.apply(doc,TEAL);
-  doc.text('ÁRBOL 1 de '+arboles.length+'  —  '+(a0.nombre||'Árbol 1'),RX+2.5,yR+5.2);
-  if(a0.especie){
-    doc.setFont('helvetica','italic');doc.setFontSize(7.5);doc.setTextColor.apply(doc,GR);
-    doc.text(a0.especie+(a0.cientifico?' ('+a0.cientifico+')':''),RX+2.5,yR+7.5);
-  }
-  yR+=10;
-
-  // Sub-header datos generales
-  doc.setFillColor.apply(doc,TEAL2);doc.rect(RX,yR,RCW,6,'F');
-  doc.setFont('helvetica','bold');doc.setFontSize(7);doc.setTextColor.apply(doc,WH);
-  doc.text('2.1 DATOS GENERALES',RX+2,yR+4.2);yR+=6;
-
-  // Tabla 2 cols de datos
-  var hw2=RCW/2, lw2=22;
-  var camposL=[
-    ['Especie',a0.especie],['Nombre científico',a0.cientifico],
-    ['Altura',a0.altura?a0.altura+' m':'—'],['DAP',a0.dap?a0.dap+' cm':'—'],
-    ['Estado físico',a0.estado],['Fase fenológica',a0.fase]
-  ];
-  var camposR=[
-    ['Ciclo biológico',a0.ciclo],['Ramificación',a0.ram],
-    ['Sitio',a0.sitio],
-    ['Compensación\nbiomasa',a0.compensacion],
-    ['Requerimientos',(a0.ch_req&&a0.ch_req.length)?a0.ch_req.join(', '):'—']
-  ];
-
-  function lcFila(label,val,x,shade,w){
-    var aw=w||RCW/2;
-    var LW2=22;
-    var s=doc.splitTextToSize(String(val||'—'),aw-LW2-1);
-    var h=Math.max(6.5,s.length*4+2.5);
-    if(shade){doc.setFillColor.apply(doc,LG);}else{doc.setFillColor(255,255,255);}
-    doc.rect(x,yR,aw,h,'F');
-    doc.setDrawColor.apply(doc,GC);doc.setLineWidth(0.15);doc.rect(x,yR,aw,h,'S');
-    doc.setFont('helvetica','bold');doc.setFontSize(6.5);doc.setTextColor.apply(doc,TEAL);
-    doc.text(String(label||'')+':',x+1.5,yR+4);
-    doc.setFont('helvetica','normal');doc.setFontSize(7.5);doc.setTextColor.apply(doc,BLK);
-    s.forEach(function(l,i){doc.text(l,x+LW2,yR+4+i*4);});
-    return h;
-  }
-
-  var maxRows=Math.max(camposL.length,camposR.length);
-  for(var fi=0;fi<maxRows;fi++){
-    var hL=0,hR=0,yBefore=yR;
-    if(camposL[fi]){hL=lcFila(camposL[fi][0],camposL[fi][1],RX,fi%2===0,hw2);}
-    yR=yBefore;
-    if(camposR[fi]){hR=lcFila(camposR[fi][0],camposR[fi][1],RX+hw2,fi%2===0,hw2);}
-    yR=yBefore+Math.max(hL,hR);
-  }
-  yR+=3;
-
-  // ── 2.2 Evaluación estructural ──
-  doc.setFillColor.apply(doc,TEAL2);doc.rect(RX,yR,RCW,6,'F');
-  doc.setFont('helvetica','bold');doc.setFontSize(7);doc.setTextColor.apply(doc,WH);
-  doc.text('2.2 EVALUACIÓN ESTRUCTURAL Y FITOSANITARIA',RX+2,yR+4.2);yR+=6;
-
-  // Sub-header tabla evaluación
-  var ec1=RCW*0.43,ec2=RCW-ec1;
-  doc.setFillColor.apply(doc,TEAL);
-  doc.rect(RX,yR,ec1,6.5,'F');doc.rect(RX+ec1,yR,ec2,6.5,'F');
-  doc.setFont('helvetica','bold');doc.setFontSize(7);doc.setTextColor.apply(doc,WH);
-  doc.text('Componente',RX+2,yR+4.5);doc.text('Hallazgo',RX+ec1+2,yR+4.5);yR+=6.5;
-
-  function evalRow(comp,items,icon,shade){
-    var txt=items&&items.length?items.join('; '):'Sin hallazgos';
-    var sC=doc.splitTextToSize(comp,ec1-4);
-    var sH=doc.splitTextToSize(txt,ec2-4);
-    var h=Math.max(7.5,Math.max(sC.length,sH.length)*4+3);
-    chk(h);
-    if(shade){doc.setFillColor.apply(doc,LG);}else{doc.setFillColor(255,255,255);}
-    doc.rect(RX,yR,ec1,h,'F');doc.rect(RX+ec1,yR,ec2,h,'F');
-    doc.setDrawColor.apply(doc,GC);doc.setLineWidth(0.15);
-    doc.rect(RX,yR,ec1,h,'S');doc.rect(RX+ec1,yR,ec2,h,'S');
-    // Ícono pequeño
-    doc.setFillColor.apply(doc,TEAL);doc.circle(RX+4,yR+h/2,2.2,'F');
-    doc.setFont('helvetica','bold');doc.setFontSize(6.5);doc.setTextColor.apply(doc,BLK);
-    sC.forEach(function(l,i){doc.text(l,RX+8,yR+4.5+i*4);});
-    doc.setFont('helvetica','normal');doc.setFontSize(7);doc.setTextColor.apply(doc,BLK);
-    sH.forEach(function(l,i){doc.text(l,RX+ec1+2,yR+4.5+i*4);});
-    yR+=h;
-  }
-  evalRow('Sistema radicular',a0.ch_raiz,'🌿',false);
-  evalRow('Fuste',a0.ch_fuste,'🌲',true);
-  evalRow('Copa',a0.ch_copa,'🍃',false);
-  yR+=3;
-
-  // ── 4. EVALUACIÓN DE RIESGO + MANEJO (col derecha, 2 sub-cols) ──
-  var rYstart=yR;
-  var mhalf=(RCW-2)/2;
-  // Riesgo
-  doc.setFillColor.apply(doc,TEAL);rr(RX,rYstart,mhalf,7.5,1.2);
-  doc.setFont('helvetica','bold');doc.setFontSize(7.5);doc.setTextColor.apply(doc,WH);
-  doc.text('4. EVALUACIÓN DE RIESGO',RX+2,rYstart+5.2);
-  doc.setFillColor(255,255,255);doc.rect(RX,rYstart+7.5,mhalf,36,'F');
-  doc.setDrawColor.apply(doc,GC);doc.setLineWidth(0.2);doc.rect(RX,rYstart+7.5,mhalf,36,'S');
-
-  var rc=a0.riesgo==='alto'?ROJO:a0.riesgo==='medio'?AMBAR:GVRD;
-  var rl=a0.riesgo==='alto'?'ALTO':a0.riesgo==='medio'?'MEDIO':'NO APLICA';
-  // Badge
-  doc.setFillColor.apply(doc,rc);
-  rr(RX+3,rYstart+10,mhalf-6,9,2);
-  doc.setFont('helvetica','bold');doc.setFontSize(8);doc.setTextColor.apply(doc,WH);
-  doc.text('NIVEL DE RIESGO',RX+mhalf/2,rYstart+13.5,'center');
-  doc.text(rl,RX+mhalf/2,rYstart+17.5,'center');
-
-  // Escala riesgo
-  var escY=rYstart+22;
-  [{c:GVRD,l:'BAJO',r:'0–5'},{c:AMBAR,l:'MEDIO',r:'6–16'},{c:ROJO,l:'ALTO',r:'>16'}].forEach(function(e,i){
-    doc.setFillColor.apply(doc,e.c);doc.circle(RX+5,escY+i*4.5,1.8,'F');
-    doc.setFont('helvetica','bold');doc.setFontSize(6.2);doc.setTextColor.apply(doc,BLK);
-    doc.text(e.l,RX+9,escY+i*4.5+0.8);
-    doc.setFont('helvetica','normal');doc.setFontSize(6);doc.setTextColor.apply(doc,GR);
-    doc.text(e.r+' pts',RX+mhalf-2,escY+i*4.5+0.8,'right');
-  });
-
-  // Manejo
-  doc.setFillColor.apply(doc,TEAL);rr(RX+mhalf+2,rYstart,mhalf,7.5,1.2);
-  doc.setFont('helvetica','bold');doc.setFontSize(7.5);doc.setTextColor.apply(doc,WH);
-  doc.text('4. MANEJO FORESTAL',RX+mhalf+4,rYstart+5.2);
-  doc.setFillColor(255,255,255);doc.rect(RX+mhalf+2,rYstart+7.5,mhalf,36,'F');
-  doc.setDrawColor.apply(doc,GC);doc.setLineWidth(0.2);doc.rect(RX+mhalf+2,rYstart+7.5,mhalf,36,'S');
-
-  var tP=a0.ch_poda&&a0.ch_poda.length;
-  var tD=(a0.ch_derribo&&a0.ch_derribo.length)||(a0.ch_nae_der&&a0.ch_nae_der.length);
-  var tT=a0.ch_nae_tras&&a0.ch_nae_tras.length;
-  var mTxt=tP?'PODA':tD?'DERRIBO':tT?'TRASPLANTE':'SIN\nMANEJO';
-  // Ícono llave
-  doc.setFillColor.apply(doc,LG);doc.circle(RX+mhalf+2+mhalf/2,rYstart+17,6,'F');
-  doc.setFont('helvetica','bold');doc.setFontSize(13);doc.setTextColor.apply(doc,TEAL);
-  doc.text(mTxt,RX+mhalf+2+mhalf/2,rYstart+24,'center');
-  doc.setFont('helvetica','bold');doc.setFontSize(6);doc.setTextColor.apply(doc,GR);
-  doc.text('Fundamento normativo:',RX+mhalf+4,rYstart+30);
-  doc.setFont('helvetica','normal');doc.setFontSize(5.8);doc.setTextColor.apply(doc,GR);
-  var normL=doc.splitTextToSize('Reglamento de Protección y Conservación del Arbolado Urbano del Municipio de Zapopan y NAE-SEMADES.',mhalf-4);
-  normL.forEach(function(l,i){doc.text(l,RX+mhalf+4,rYstart+33.5+i*3.5);});
-  yR=rYstart+47;
-
-  // Sincronizar Y con la más larga
-  y=Math.max(yL,yR)+4;
+  y=yL+4;
 
   // ── OBSERVACIONES generales ──
   if(obs){
@@ -1166,23 +1052,45 @@ function generarPDF(returnBlob){
       }else{dibujaMapa();}
 
       function dibujaMapa(){
-        doc.setFillColor(238,244,250);doc.rect(mX,mY,mW,mH,'F');
-        doc.setFillColor(215,226,237);
-        var bC=5,bR=4,bW=mW/bC,bH=mH/bR,gp=1.6;
+        // Fondo pavimento claro
+        doc.setFillColor(242,246,250);doc.rect(mX,mY,mW,mH,'F');
+        // Manzanas grises
+        doc.setFillColor(210,220,230);
+        var bC=5,bR=4,bW=mW/bC,bH=mH/bR,gp=2;
         for(var bi=0;bi<bC;bi++)for(var bj=0;bj<bR;bj++)
           doc.rect(mX+bi*bW+gp,mY+bj*bH+gp,bW-gp*2,bH-gp*2,'F');
+        // Calles blancas
         doc.setFillColor(255,255,255);
         for(var si=1;si<bC;si++)doc.rect(mX+si*bW-gp,mY,gp*2,mH,'F');
         for(var sj=1;sj<bR;sj++)doc.rect(mX,mY+sj*bH-gp,mW,gp*2,'F');
-        // Etiquetas de coordenadas (calles)
-        doc.setFont('helvetica','normal');doc.setFontSize(4.5);doc.setTextColor(70,100,130);
-        for(var ni=1;ni<bC;ni++){
-          var lv=(minLng+ni*dLng/bC).toFixed(4)+'°';
-          doc.text(lv,mX+ni*bW,mY+2,'center');
-        }
-        for(var nj=1;nj<bR;nj++){
-          var lh=(maxLat-nj*dLat/bR).toFixed(4)+'°';
-          doc.text(lh,mX+1,mY+nj*bH-0.5);
+        // Líneas de centro de calle
+        doc.setDrawColor(180,195,210);doc.setLineWidth(0.2);
+        for(var si2=1;si2<bC;si2++)doc.line(mX+si2*bW,mY,mX+si2*bW,mY+mH);
+        for(var sj2=1;sj2<bR;sj2++)doc.line(mX,mY+sj2*bH,mX+mW,mY+sj2*bH);
+        // Nombres de calles precargados desde Overpass/Nominatim
+        if(window._callesNombres&&window._callesNombres.length){
+          doc.setFont('helvetica','bold');doc.setFontSize(5);
+          window._callesNombres.forEach(function(cn){
+            var cx=toX(cn.lng),cy=toY2(cn.lat);
+            if(cx>mX+3&&cx<mX+mW-3&&cy>mY+3&&cy<mY+mH-3){
+              var tw=doc.getTextWidth(cn.name)+2;
+              doc.setFillColor(255,255,255);
+              doc.rect(cx-tw/2,cy-3.5,tw,4.5,'F');
+              doc.setTextColor(30,60,110);
+              doc.text(cn.name,cx,cy,'center');
+            }
+          });
+        } else {
+          // Fallback: coordenadas como referencia
+          doc.setFont('helvetica','normal');doc.setFontSize(4.5);doc.setTextColor(70,100,130);
+          for(var ni=1;ni<bC;ni++){
+            var lv=(minLng+ni*(maxLng-minLng)/bC).toFixed(4)+'°O';
+            doc.text(lv,mX+ni*bW,mY+2.5,'center');
+          }
+          for(var nj=1;nj<bR;nj++){
+            var lh=(maxLat-nj*(maxLat-minLat)/bR).toFixed(4)+'°N';
+            doc.text(lh,mX+1.5,mY+nj*bH-1);
+          }
         }
       }
 
@@ -1231,30 +1139,47 @@ function generarPDF(returnBlob){
       gap(4);
     }
 
-    // ── Registro fotográfico ──
-    if(fotosArr&&fotosArr.length){
-      var nSec=idx===0&&marcadores&&marcadores.length?'6':'5';
-      chk(18);
-      doc.setFillColor(70,70,70);rr(M,y,cW,7.5,1.2);
-      doc.setFont('helvetica','bold');doc.setFontSize(7.8);doc.setTextColor.apply(doc,WH);
-      doc.text(nSec+'. REGISTRO FOTOGRÁFICO',M+2.5,y+5.2);y+=9;
-
-      var fW=(cW-6)/2,fH=fW*0.72;
-      fotosArr.forEach(function(fs,fi){
-        if(fi%2===0){if(fi>0)gap(3);chk(fH+14);}
-        var fx=M+(fi%2)*(fW+6),fy=y;
-        doc.setFont('helvetica','bold');doc.setFontSize(7);doc.setTextColor.apply(doc,BLK);
-        doc.text('Foto '+(fi+1),fx,fy-1);
-        doc.setDrawColor.apply(doc,GC);doc.setLineWidth(0.3);doc.rect(fx,fy,fW,fH,'S');
-        try{doc.addImage(fs,'JPEG',fx,fy,fW,fH,'','FAST');}catch(e){}
-        doc.setFont('helvetica','normal');doc.setFontSize(6.5);doc.setTextColor.apply(doc,GR);
-        doc.text('Descripción: Condición del árbol.',fx,fy+fH+4);
-        if(fi%2===1)y+=fH+9;
-      });
-      if(fotosArr.length%2===1)y+=fH+9;
-      gap(3);
-    }
+    // (fotos al final del dictamen)
   }); // fin forEach árbol
+
+  // ════════════════════════════════════════
+  // ÚLTIMA SECCIÓN: REGISTRO FOTOGRÁFICO
+  // ════════════════════════════════════════
+  if(fotosArr&&fotosArr.length){
+    doc.addPage();cabecera();
+    doc.setFillColor(70,70,70);rr(M,y,cW,7.5,1.2);
+    doc.setFont('helvetica','bold');doc.setFontSize(8);doc.setTextColor.apply(doc,WH);
+    doc.text('REGISTRO FOTOGRÁFICO DEL DICTAMEN',M+2.5,y+5.3);y+=10;
+
+    var fW=(cW-8)/3,fH=fW*0.75; // 3 columnas
+    fotosArr.forEach(function(fs,fi){
+      var col=fi%3;
+      if(col===0){
+        if(fi>0){y+=fH+14;}
+        chk(fH+14);
+      }
+      var fx=M+col*(fW+4),fy=y;
+      // Número de foto
+      doc.setFont('helvetica','bold');doc.setFontSize(7);doc.setTextColor.apply(doc,BLK);
+      doc.text('Foto '+(fi+1),fx,fy-1.5);
+      // Marco
+      doc.setFillColor.apply(doc,LG);doc.rect(fx,fy,fW,fH,'F');
+      doc.setDrawColor.apply(doc,GC);doc.setLineWidth(0.3);doc.rect(fx,fy,fW,fH,'S');
+      // Imagen
+      try{
+        doc.addImage(fs,'JPEG',fx,fy,fW,fH,'','FAST');
+      }catch(e){
+        doc.setFont('helvetica','italic');doc.setFontSize(6);doc.setTextColor.apply(doc,GR);
+        doc.text('Imagen no disponible',fx+fW/2,fy+fH/2,'center');
+      }
+      // Descripción
+      doc.setFont('helvetica','normal');doc.setFontSize(6);doc.setTextColor.apply(doc,GR);
+      doc.text('Foto '+(fi+1)+' — Árbol: condición general',fx,fy+fH+4);
+    });
+    // Avanzar Y si la última fila no está completa
+    y+=fH+14;
+    gap(3);
+  }
 
   if(returnBlob){
     return doc.output('blob');
