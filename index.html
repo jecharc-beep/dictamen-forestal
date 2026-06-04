@@ -572,10 +572,10 @@ function generarPDF(returnBlob){
   function tablaHeader(){
     chk(22);
     var cols=[
-      {ico:'📋',lbl:'SOLICITUD', val:folio||'—'},
-      {ico:'📆',lbl:'FECHA',     val:fecha||'—'},
-      {ico:'👤',lbl:'SUPERVISOR (A)', val:sup||'—'},
-      {ico:'⚙️',lbl:'PROGRAMA', val:prog||'—'}
+      {ico:'',lbl:'SOLICITUD', val:folio||'—'},
+      {ico:'',lbl:'FECHA',     val:fecha||'—'},
+      {ico:'',lbl:'SUPERVISOR (A)', val:sup||'—'},
+      {ico:'',lbl:'PROGRAMA', val:prog||'—'}
     ];
     var cw=cW/4, ch=18, cy=y;
 
@@ -588,7 +588,7 @@ function generarPDF(returnBlob){
       // Ícono + label
       doc.setFont('helvetica','bold');doc.setFontSize(7);
       doc.setTextColor.apply(doc,BLK);
-      doc.text(col.ico+' '+col.lbl,x+cw/2,cy+5.2,'center');
+      doc.text(col.lbl,x+cw/2,cy+5.2,'center');
     });
 
     // Fila de valores
@@ -1046,7 +1046,7 @@ function generarPDF(returnBlob){
   cabecera();
   tablaHeader();
   gap(4);
-  secHdr('Resumen del dictamen','🌳 Árboles evaluados: '+arboles.length);
+  secHdr('Resumen del dictamen','Arboles evaluados: '+arboles.length);
   gap(3);
   tablaResumen();
   secHdr('Validación y firmas');
