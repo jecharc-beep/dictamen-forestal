@@ -538,13 +538,13 @@ function generarPDF(returnBlob){
 
     // Logo GobZap izquierda — proporciones reales 1.26
     try{
-      var gH=22,gW=Math.round(gH*1.342*10)/10;
+      var gH=22,gW=Math.round(gH*1.342*10)/10; // GobZap: 22mm alto
       doc.addImage('data:image/jpeg;base64,'+IMG_GOBZAP,'JPEG',M,6,gW,gH);
     }catch(e){}
 
     // Logo Parques derecha — proporciones reales 1.78
     try{
-      var pH=16,pW=Math.round(pH*1.500*10)/10;
+      var pH=22,pW=Math.round(pH*1.500*10)/10; // Parques: 22mm alto (igual que GobZap)
       doc.addImage('data:image/jpeg;base64,'+IMG_PARQUES,'JPEG',W-M-pW,8,pW,pH);
     }catch(e){}
 
