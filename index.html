@@ -376,14 +376,14 @@ function _enviarDictamen(){
       return fetch(SCRIPT_URL,opts(p)).catch(function(){return{ok:false};});
     });
     Promise.all([p1].concat(p2))
-    .then(function(){setSyncBadge('ok');hideModal('✅','¡Dictamen enviado!','PDF y Sheets guardados en Drive');generarPDF(false);})
-    .catch(function(){setSyncBadge('err');hideModal('❌','Error al enviar','PDF descargado localmente.');generarPDF(false);});
+    .then(function(){setSyncBadge('ok');hideModal('✅','¡Dictamen enviado!','PDF guardado en Drive correctamente.');})
+    .catch(function(){setSyncBadge('err');hideModal('❌','Error al enviar','Guardando PDF localmente como respaldo.');generarPDF(false);});
   };
   reader.onerror=function(){hideModal('❌','Error','No se pudo leer el PDF generado.');setSyncBadge('err');};
   reader.readAsDataURL(pdfBlob);
 }
 
-function nuevoArbol(n){return{id:Date.now()+'_'+n,nombre:'Árbol '+n,especie:'',cientifico:'',altura:'',dap:'',fase:null,estado:null,ciclo:null,ram:null,ch_raiz:[],ch_fuste:[],ch_copa:[],ch_plagas:[],ch_diana:[],sitio:null,ch_req:[],ch_poda:[],ch_derribo:[],ch_nae_tras:[],ch_nae_der:[],compensacion:null,riesgo:null,notas:'',notas_r:'',_pts:0};}
+function nuevoArbol(n){return{id:Date.now()+'_'+n,nombre:'Árbol '+n,especie:'',cientifico:'',altura:'',dap:'',fase:null,estado:null,ciclo:null,ram:null,ch_raiz:[],ch_fuste:[],ch_copa:[],ch_plagas:[],ch_diana:[],sitio:null,ch_req:[],ch_poda:[],ch_derribo:[],ch_nae_tras:[],ch_nae_der:[],compensacion:null,riesgo:null,notas:'',notas_r:'',notas_raiz:'',notas_fuste:'',notas_copa:'',_pts:0};}
 function calcPts(a){var p=a.ch_raiz.length+a.ch_fuste.length+a.ch_copa.length+(a.ch_plagas?a.ch_plagas.length:0);if(a.ch_diana.length>0)p+=1;if(a.sitio)p+=1;a._pts=p;if(p<=5)a.riesgo='bajo';else if(p<=16)a.riesgo='medio';else a.riesgo='alto';}
 function getProg(a){var d=0;if(a.especie)d++;if(a.estado)d++;if(a.ch_raiz.length||a.ch_fuste.length)d++;if(a.ch_copa.length||a.ch_plagas.length)d++;if(a.sitio||a.ch_diana.length)d++;if(a.riesgo)d++;return{done:d,total:6};}
 function getBadge(a){if(!a.riesgo)return['bvac','—'];if(a.riesgo==='alto')return['balt','🔴 Alto'];if(a.riesgo==='medio')return['bmed','🟡 Medio'];return['bok','⚪ OK'];}
@@ -427,21 +427,29 @@ function buildArbol(id){
   h+='</div><div class="sep"></div><p class="stitle">Ramificación</p><div class="ckg">';
   ['Monopódico','Dicotómico','Simpódico'].forEach(function(v){h+=excl(a,'ram',v,v);});
   h+='</div></div></div>';
-  h+=dCard(a,'ch_raiz','🌱 Sistema Radicular','vrd',[['w','Raíces levantando banqueta/pavimento'],['d','Raíces cortadas por obras'],['w','Espacio radicular reducido'],['d','Daño mecánico por vehículos']]);
-  h+=dCard(a,'ch_fuste','🪵 Fuste','vrd',[['w','Corteza agrietada/fisuras'],['d','Grietas profundas'],['d','Cavidad/hueco'],['d','Pudrición visible'],['w','Exudados anómalos'],['d','Inclinación >30°'],['w','Corteza desprendida/cancros'],['d','Desgajado']]);
-  h+=dCard(a,'ch_copa','🌿 Copa','vrd',[['w','Copa asimétrica'],['w','Ramas secas'],['d','Rama desgajada/colgante'],['w','Chupones post-desmoche'],['d','Horquillas incluidas'],['w','Historial desmoche drástico'],['w','Copa excesivamente densa']]);
+  h+=dCard(a,'ch_copa','🌿 Copa','vrd',[['w','Copa asimétrica'],['d','Rama desgajada/colgante'],['d','Horquillas incluidas'],['w','Copa excesivamente densa'],['d','Muerte regresiva'],['w','Presencia de planta parásita'],['d','Pudrición en ramas']]);
+  h+=dCard(a,'ch_fuste','🪵 Fuste','vrd',[['d','Grietas profundas'],['d','Cavidad/hueco'],['d','Pudrición visible'],['w','Exudados anómalos'],['d','Inclinación >30°'],['w','Daño mecánico (tejido vivo expuesto)'],['w','Corteza incluida'],['d','Presencia de hongos (cuerpos fructíferos)']]);
+  h+=dCard(a,'ch_raiz','🌱 Sistema Radicular','vrd',[['w','Raíces levantando banqueta/pavimento'],['d','Raíces cortadas'],['w','Espacio radicular reducido']]);
   h+='<div class="card"><div class="ch az"><span class="ch-icon">🎯</span>Entorno y Diana</div><div class="cb">';
-  h+='<p class="stitle">Afectaciones</p><div class="ckg c2" style="margin-bottom:10px">';
-  [['w','Banqueta'],['w','Piso'],['d','Cimiento'],['d','Muro'],['w','Aljibe'],['w','Drenaje'],['w','Toma agua'],['d','Cables CFE'],['w','Cables de servicios'],['w','Luminaria'],['w','Machuelo']].forEach(function(v){h+=chk(a,'ch_diana',v[1],v[1],v[0]);});
-  h+='</div><div class="ptbox v"><span style="font-size:13px;font-weight:600;color:var(--v)">Puntos diana</span><span style="font-size:22px;font-weight:700;color:var(--v)">'+(a.ch_diana.length>0?1:0)+'</span></div>';
+  h+='<p class="stitle">Afectaciones</p>';
+  h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:0 8px;margin-bottom:10px;">';
+  // Columna izquierda
+  h+='<div>';
+  [['w','Banqueta'],['w','Piso interior'],['d','Cimiento'],['w','Aljibe'],['w','Toma de agua'],['w','Machuelo'],['w','Drenaje']].forEach(function(v){h+=chk(a,'ch_diana',v[1],v[1],v[0]);});
+  h+='</div>';
+  // Columna derecha
+  h+='<div>';
+  [['d','Muro'],['w','Cables telecomunicaciones'],['d','Cables CFE media tensión'],['d','Cables CFE alta tensión'],['w','Luminaria'],['w','Poste']].forEach(function(v){h+=chk(a,'ch_diana',v[1],v[1],v[0]);});
+  h+='</div>';
+  h+='</div>';
   h+='<div class="sep"></div><p class="stitle">Sitio</p><div class="ckg c2" style="margin-bottom:10px">';
   ['Camellón','Banqueta','Parque','Servidumbre','Interior','Predio municipal','Dependencia gobierno','Escuela'].forEach(function(v){h+=excl(a,'sitio',v,v);});
   h+='</div><p class="stitle">Operatividad: Requerimientos y entorno</p><div class="ckg">';
-  ['Caída libre','Técnicas de cordaje','Canastilla','Trabajo en altura','Cercanía a finca','Cercanía a poste','Cercanía a cableado'].forEach(function(v){h+=chk(a,'ch_req',v,v,'');});
+  ['Caída libre','Canastilla','Cercanía a finca','Cercanía a poste','Cercanía a cableado','Acceso a vehículos/maquinaria','Trepa de árboles'].forEach(function(v){h+=chk(a,'ch_req',v,v,'');});
   h+='</div></div></div>';
   h+='<div class="card"><div class="ch vrd"><span class="ch-icon">🏁</span>Resultado y Manejo</div><div class="cb">';
   var rC=a.riesgo||'bajo',rN=a.riesgo==='alto'?'🔴 RIESGO ALTO':a.riesgo==='medio'?'🟡 RIESGO MEDIO':'⚪ NO APLICA';
-  h+='<div class="resbox '+rC+'"><div class="rptsl">Puntaje total</div><div class="rpts">'+(a._pts||0)+'</div><div class="rn">'+rN+'</div></div>';
+  // Puntaje total eliminado del formulario
   h+='<p class="stitle">Clasificación final</p><div class="rbg">';
   [{k:'bajo',l:'No aplica',d:'0–5 pts'},{k:'medio',l:'Medio',d:'6–16 pts'},{k:'alto',l:'Alto',d:'>16 pts'}].forEach(function(r){
     h+='<div class="rbtn '+r.k+(a.riesgo===r.k?' sel':'')+'" onclick="setRiesgo(\''+r.k+'\')">'+'<div class="dot"></div><div class="rl">'+r.l+'</div><div class="rd2">'+r.d+'</div></div>';
@@ -472,7 +480,13 @@ function buildArbol(id){
 function chk(a,campo,val,label,sev){var arr=a[campo]||[],ck=arr.indexOf(val)>=0,cls='ci'+(ck?' ck':'')+(ck&&sev==='w'?' w':ck&&sev==='d'?' d':'');return'<label class="'+cls+'" onclick="tchk(this,\''+campo+'\',\''+val.replace(/'/g,"\\'")+'\')"><div class="cb2">✓</div><span class="cl">'+label+'</span></label>';}
 function excl(a,campo,val,label,sev){var ck=a[campo]===val,cls='ci'+(ck?' ck':'')+(ck&&sev==='w'?' w':ck&&sev==='d'?' d':'');return'<label class="'+cls+'" onclick="texcl(this,\''+campo+'\',\''+val.replace(/'/g,"\\'")+'\')"><div class="cb2">✓</div><span class="cl">'+label+'</span></label>';}
 function bChks(a,campo,items){return items.map(function(v){return chk(a,campo,v[1],v[1],v[0]);}).join('');}
-function dCard(a,campo,titulo,hCls,items){var pts=a[campo].length;return'<div class="card"><div class="ch '+hCls+'"><span class="ch-icon">'+titulo.split(' ')[0]+'</span>'+titulo.split(' ').slice(1).join(' ')+'</div><div class="cb"><div class="ckg">'+bChks(a,campo,items)+'</div><div class="ptbox v" style="margin-top:12px;"><span style="font-size:13px;font-weight:600;color:var(--v)">Puntos</span><span style="font-size:22px;font-weight:700;color:var(--v)">'+pts+'</span></div></div></div>';}
+function dCard(a,campo,titulo,hCls,items){
+  var notaKey='notas_'+campo.replace('ch_','');
+  var notaVal=a[notaKey]||'';
+  return '<div class="card"><div class="ch '+hCls+'"><span class="ch-icon">'+titulo.split(' ')[0]+'</span>'+titulo.split(' ').slice(1).join(' ')+'</div><div class="cb"><div class="ckg">'+bChks(a,campo,items)+'</div>'+
+    '<textarea placeholder="Notas adicionales..." style="width:100%;margin-top:10px;padding:8px;border-radius:6px;border:1px solid var(--gc);font-size:13px;font-family:inherit;resize:vertical;min-height:48px;" oninput="sf(\''+notaKey+'\',this.value)">'+esc(notaVal)+'</textarea>'+
+    '</div></div>';
+}
 function acord(uid,titulo,content){return'<div class="ah" onclick="togAcord(this)">'+titulo+'</div><div class="ab" style="display:none;flex-direction:column;gap:8px;padding:8px 0 4px;">'+content+'</div>';}
 function togAcord(h){var b=h.nextElementSibling,op=b.classList.contains('op');b.classList.toggle('op',!op);b.style.display=op?'none':'flex';h.classList.toggle('op',!op);}
 function tchk(el,campo,val){var a=arboles[arbolActivo],arr=a[campo]||[],idx=arr.indexOf(val);if(idx>=0){arr.splice(idx,1);el.classList.remove('ck','w','d');}else{arr.push(val);el.classList.add('ck');}a[campo]=arr;calcPts(a);renderLista();guardarAuto();}
@@ -792,8 +806,9 @@ function generarPDF(returnBlob){
     doc.text('Componente',M+ec1/2,y+4.8,'center');
     doc.text('Hallazgo',M+ec1+ec2/2,y+4.8,'center');y+=7;
 
-    [['Sistema radicular',a.ch_raiz],['Fuste',a.ch_fuste],['Copa',a.ch_copa]].forEach(function(ev,ei){
-      var txt=ev[1]&&ev[1].length?ev[1].join('; '):'Sin hallazgos';
+    [['Sistema radicular',a.ch_raiz,a.notas_raiz],['Fuste',a.ch_fuste,a.notas_fuste],['Copa',a.ch_copa,a.notas_copa]].forEach(function(ev,ei){
+      var hallazgos=ev[1]&&ev[1].length?ev[1].join('; '):'Sin hallazgos';
+      var txt=ev[2]?hallazgos+' | '+ev[2]:hallazgos;
       var sC=doc.splitTextToSize(ev[0],ec1-4);
       var sH=doc.splitTextToSize(txt,ec2-4);
       var h=Math.max(7,Math.max(sC.length,sH.length)*4+3);
