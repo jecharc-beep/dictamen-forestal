@@ -596,10 +596,14 @@ function generarPDF(returnBlob){
   }
 
   // ── TABLA POR ÁRBOL (estructura imagen) ──
-  function tablaArbol(a,idx){
-    var tH=6.5; // altura fila base
-    var needed=80;
-    chkPg(needed);
+  function tablaArbol(a,idx,tHesc){
+    var tH=tHesc||6.5;
+    var manejos=[];
+    if(a.ch_poda&&a.ch_poda.length)manejos.push('Poda');
+    if((a.ch_derribo&&a.ch_derribo.length)||(a.ch_nae_der&&a.ch_nae_der.length))manejos.push('Derribo');
+    if(a.ch_nae_tras&&a.ch_nae_tras.length)manejos.push('Trasplante');
+    if(!manejos.length)manejos.push('Sin manejo');
+    var sitioTxt=(a.sitio||'')+(a.sitio_otro?' — '+a.sitio_otro:'');
 
     // ── Encabezado árbol ──
     doc.setFillColor.apply(doc,TEAL);doc.rect(M,y,cW,8,'F');
@@ -627,12 +631,6 @@ function generarPDF(returnBlob){
     y+=tH;
 
     // ── Fila valores datos generales ──
-    var mL=[];
-    if(a.ch_poda&&a.ch_poda.length)mL.push('Poda');
-    if((a.ch_derribo&&a.ch_derribo.length)||(a.ch_nae_der&&a.ch_nae_der.length))mL.push('Derribo');
-    if(a.ch_nae_tras&&a.ch_nae_tras.length)mL.push('Trasplante');
-    if(!mL.length)mL.push('Sin manejo');
-    var sitioTxt=(a.sitio||'')+(a.sitio_otro?' — '+a.sitio_otro:'');
     var dv=[a.especie||'—',a.cientifico||'—',
             a.altura?a.altura+' m':'—',a.dap?a.dap+' cm':'—',
             sitioTxt||'—',a.estado||'—',a.fase||'—',a.ciclo||'—',a.ram||'—'];
@@ -792,6 +790,18 @@ function generarPDF(returnBlob){
     if(window._mapaImgB64){
       try{doc.addImage(window._mapaImgB64,'JPEG',mX,mY,mW,mH);}catch(ex){dibujaFondo();}
     }else{dibujaFondo();}
+    // Dibujar nombres de calles siempre (sobre imagen OSM o fondo simulado)
+    if(window._callesNombres&&window._callesNombres.length){
+      doc.setFont('helvetica','bold');doc.setFontSize(5.5);
+      window._callesNombres.forEach(function(cn){
+        var cx=toX(cn.lng),cy=toY2(cn.lat);
+        if(cx>mX+5&&cx<mX+mW-5&&cy>mY+5&&cy<mY+mH-5){
+          var tw=doc.getTextWidth(cn.name)+3;
+          doc.setFillColor(255,255,255);doc.rect(cx-tw/2,cy-3.8,tw,5,'F');
+          doc.setTextColor(20,50,100);doc.text(cn.name,cx,cy,'center');
+        }
+      });
+    }
 
     function dibujaFondo(){
       doc.setFillColor(240,246,252);doc.rect(mX,mY,mW,mH,'F');
@@ -802,17 +812,7 @@ function generarPDF(returnBlob){
       doc.setFillColor(255,255,255);
       for(var si=1;si<bC;si++)doc.rect(mX+si*bW-gp,mY,gp*2,mH,'F');
       for(var sj=1;sj<bR;sj++)doc.rect(mX,mY+sj*bH-gp,mW,gp*2,'F');
-      if(window._callesNombres&&window._callesNombres.length){
-        doc.setFont('helvetica','bold');doc.setFontSize(5);doc.setTextColor(30,60,110);
-        window._callesNombres.forEach(function(cn){
-          var cx=toX(cn.lng),cy=toY2(cn.lat);
-          if(cx>mX+3&&cx<mX+mW-3&&cy>mY+3&&cy<mY+mH-3){
-            var tw=doc.getTextWidth(cn.name)+2;
-            doc.setFillColor(255,255,255);doc.rect(cx-tw/2,cy-3.5,tw,4.5,'F');
-            doc.setTextColor(30,60,110);doc.text(cn.name,cx,cy,'center');
-          }
-        });
-      }
+      // (nombres de calles se dibujan después, sobre cualquier fondo)
     }
     if(marcadores.length>1){
       doc.setDrawColor(45,130,45);doc.setLineWidth(0.7);
@@ -920,32 +920,54 @@ function generarPDF(returnBlob){
   }
 
   // ── GENERAR PDF ──
+  // ── PÁGINA 1: Datos + Tablas árboles + Observaciones ──
   cabecera();
   tablaDatos();
   gap(2);
 
-  // Tablas por árbol (con observaciones y croquis después de cada árbol)
+  // ── Todas las tablas de árboles en UNA SOLA PÁGINA ──
+  // Estimar altura por árbol: encabezado(8) + hdr cols(6.5) + fila datos(8) +
+  // sub-encabezado eval(6.5) + Copa(8) + Fuste(8) + Raíz(8) + Manejo(10) + gap(4) ≈ 67mm
+  var alturaDisponible=PH-y-14; // espacio restante en página actual
+  var alturaEstimadaXArbol=68;
+  var alturaObs=obs?(doc.splitTextToSize(obs,cW-4).length*4.5+14):0;
+  var alturaTotal=arboles.length*alturaEstimadaXArbol+alturaObs;
+
+  // Si no caben en el espacio restante de página 1, nueva página
+  if(alturaTotal>alturaDisponible){doc.addPage();cabecera();alturaDisponible=PH-y-14;}
+
+  // Calcular factor de escala si las tablas son muy largas
+  // La altura base por árbol es ~68mm; si no caben, reducir proporcionalmente
+  var escala=1;
+  if(alturaTotal>alturaDisponible){
+    escala=alturaDisponible/alturaTotal;
+    escala=Math.max(0.55,Math.min(1,escala)); // mínimo 55% del tamaño
+  }
+  // Aplicar escala al tH global para esta sección
+  var tHesc=Math.max(4.5,6.5*escala);
+
   arboles.forEach(function(a,idx){
-    tablaArbol(a,idx);
-    // Observaciones generales después de la tabla del árbol
-    if(idx===0&&obs){
-      chkPg(14);
-      doc.setFillColor.apply(doc,TEAL_L);doc.rect(M,y,cW,7,'F');
-      doc.setFont('helvetica','bold');doc.setFontSize(8);doc.setTextColor.apply(doc,TEAL);
-      doc.text('Observaciones generales',M+4,y+5);y+=7;
-      var obsL2=doc.splitTextToSize(obs,cW-4);
-      var oh2=Math.max(8,obsL2.length*4.5+4);
-      doc.setFillColor(255,255,255);doc.rect(M,y,cW,oh2,'F');
-      doc.setDrawColor.apply(doc,GC);doc.setLineWidth(0.2);doc.rect(M,y,cW,oh2,'S');
-      doc.setFont('helvetica','normal');doc.setFontSize(8);doc.setTextColor.apply(doc,BLK);
-      obsL2.forEach(function(l,i){doc.text(l,M+3,y+4.5+i*4.5);});
-      y+=oh2;gap(3);
-    }
-    // Croquis y coordenadas después de observaciones (solo árbol 1)
-    if(idx===0)seccionCroquis();
+    tablaArbol(a,idx,tHesc);
   });
 
-  // Firmas
+  // Observaciones generales después de todos los árboles
+  if(obs){
+    chkPg(14);
+    doc.setFillColor.apply(doc,TEAL_L);doc.rect(M,y,cW,7,'F');
+    doc.setFont('helvetica','bold');doc.setFontSize(8);doc.setTextColor.apply(doc,TEAL);
+    doc.text('Observaciones generales',M+4,y+5);y+=7;
+    var obsL2=doc.splitTextToSize(obs,cW-4);
+    var oh2=Math.max(8,obsL2.length*4.5+4);
+    doc.setFillColor(255,255,255);doc.rect(M,y,cW,oh2,'F');
+    doc.setDrawColor.apply(doc,GC);doc.setLineWidth(0.2);doc.rect(M,y,cW,oh2,'S');
+    doc.setFont('helvetica','normal');doc.setFontSize(8);doc.setTextColor.apply(doc,BLK);
+    obsL2.forEach(function(l,i){doc.text(l,M+3,y+4.5+i*4.5);});
+    y+=oh2;gap(3);
+  }
+
+  // ── PÁGINA 2: Croquis + Coordenadas + Firmas ──
+  doc.addPage();cabecera();
+  seccionCroquis();
   seccionFirmas();
 
   // Fotos
