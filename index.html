@@ -291,62 +291,117 @@ function finalizarDictamen(){
   window._mapaImgB64=null;
   window._callesNombres=[];
 
-  var afterMapa=function(){_enviarDictamen();};
-  var afterCalles=function(){
-    // Intentar precargar mapa OSM
-    if(marcadores&&marcadores.length){
-      var lats=marcadores.map(function(o){return o.lat;});
-      var lngs=marcadores.map(function(o){return o.lng;});
-      var cLat=(Math.min.apply(null,lats)+Math.max.apply(null,lats))/2;
-      var cLng=(Math.min.apply(null,lngs)+Math.max.apply(null,lngs))/2;
-      var span=Math.max(Math.max.apply(null,lats)-Math.min.apply(null,lats),
-                        Math.max.apply(null,lngs)-Math.min.apply(null,lngs));
-      var zoom=span>0.02?13:span>0.005?15:17;
-      var osmUrl='https://staticmap.openstreetmap.de/staticmap.php?center='+cLat+','+cLng+'&zoom='+zoom+'&size=600x300&format=png';
-      var img=new Image();img.crossOrigin='anonymous';
-      var done=false;
-      var doAfter=function(){if(!done){done=true;afterMapa();}};
-      img.onload=function(){
-        try{
-          var cv=document.createElement('canvas');cv.width=img.width;cv.height=img.height;
-          cv.getContext('2d').drawImage(img,0,0);
-          window._mapaImgB64=cv.toDataURL('image/jpeg',0.88);
-        }catch(e){window._mapaImgB64=null;}
-        doAfter();
-      };
-      img.onerror=function(){doAfter();};
-      img.src=osmUrl;
-      setTimeout(function(){doAfter();},5000);
-    } else {
-      afterMapa();
-    }
-  };
+  // ── Extraer nombres de calles del mapa Leaflet que ya está visible ──
+  if(map){
+    try{
+      // Obtener labels visibles del mapa Leaflet (tiles de OpenStreetMap ya renderizados)
+      var callesSet={};
+      // Buscar elementos SVG/canvas del mapa con texto de calles
+      var mapEl=document.getElementById('mapa');
+      if(mapEl){
+        var textos=mapEl.querySelectorAll('text, .leaflet-tile-container');
+        textos.forEach(function(t){
+          var txt=(t.textContent||'').trim();
+          if(txt&&txt.length>2&&txt.length<40)callesSet[txt]=true;
+        });
+      }
+      // Alternativa: usar Nominatim reverse geocoding para cada marcador
+      var promesas=marcadores.slice(0,3).map(function(m){
+        return fetch('https://nominatim.openstreetmap.org/reverse?format=json&lat='+m.lat+'&lon='+m.lng+'&zoom=17&addressdetails=1',
+          {headers:{'Accept':'application/json','Accept-Language':'es'}})
+          .then(function(r){return r.json();})
+          .then(function(d){
+            // Extraer nombre de calle y calles cercanas del resultado
+            var addr=d.address||{};
+            var nombres=[addr.road,addr.pedestrian,addr.footway,addr.cycleway,addr.residential].filter(Boolean);
+            // También extraer display_name partes
+            if(d.display_name){
+              var parts=d.display_name.split(',').map(function(p){return p.trim();});
+              parts.slice(0,2).forEach(function(p){if(p&&p.length>2&&p.length<40)nombres.push(p);});
+            }
+            nombres.forEach(function(n){if(n)callesSet[n]=true;});
+          }).catch(function(){});
+      });
 
-  // Buscar nombres de calles cercanas con Overpass API
-  if(marcadores&&marcadores.length){
-    var lats2=marcadores.map(function(o){return o.lat;});
-    var lngs2=marcadores.map(function(o){return o.lng;});
-    var pad=0.003;
-    var bbox=(Math.min.apply(null,lats2)-pad)+','+(Math.min.apply(null,lngs2)-pad)+','+
-             (Math.max.apply(null,lats2)+pad)+','+(Math.max.apply(null,lngs2)+pad);
-    var query='[out:json][timeout:8];way["highway"]["name"]('+bbox+');out center;';
-    var url='https://overpass-api.de/api/interpreter?data='+encodeURIComponent(query);
-    fetch(url)
-      .then(function(r){return r.json();})
-      .then(function(data){
-        window._callesNombres=(data.elements||[]).map(function(el){
-          return{name:el.tags&&el.tags.name?el.tags.name:'',
-                 lat:el.center?el.center.lat:(el.lat||0),
-                 lng:el.center?el.center.lon:(el.lon||0)};
-        }).filter(function(cn){return cn.name&&cn.lat&&cn.lng;});
-        afterCalles();
-      })
-      .catch(function(){afterCalles();});
-    setTimeout(function(){if(!window._callesNombres.length){afterCalles();}},6000);
+      Promise.all(promesas).then(function(){
+        // Construir array de calles con posiciones interpoladas entre marcadores
+        var callesArr=Object.keys(callesSet).map(function(name,i){
+          // Distribuir nombres a lo largo del recorrido de marcadores
+          var mi=i%Math.max(1,marcadores.length);
+          return{
+            name:name,
+            lat:marcadores[mi]?marcadores[mi].lat+(Math.random()-0.5)*0.0008:0,
+            lng:marcadores[mi]?marcadores[mi].lng+(Math.random()-0.5)*0.0008:0
+          };
+        }).filter(function(cn){return cn.lat&&cn.lng;});
+        window._callesNombres=callesArr;
+        cargarMapaOSM();
+      });
+
+    } catch(e){ cargarMapaOSM(); }
   } else {
-    afterCalles();
+    // Intentar directamente con Overpass como fallback
+    if(marcadores&&marcadores.length){
+      var lats2=marcadores.map(function(o){return o.lat;});
+      var lngs2=marcadores.map(function(o){return o.lng;});
+      var pad=0.004;
+      var bbox=(Math.min.apply(null,lats2)-pad)+','+(Math.min.apply(null,lngs2)-pad)+','+
+               (Math.max.apply(null,lats2)+pad)+','+(Math.max.apply(null,lngs2)+pad);
+      var query='[out:json][timeout:10];way["highway"]["name"]('+bbox+');out center;';
+      var url='https://overpass-api.de/api/interpreter?data='+encodeURIComponent(query);
+      fetch(url)
+        .then(function(r){return r.json();})
+        .then(function(data){
+          window._callesNombres=(data.elements||[]).map(function(el){
+            return{name:el.tags&&el.tags.name?el.tags.name:'',
+                   lat:el.center?el.center.lat:(el.lat||0),
+                   lng:el.center?el.center.lon:(el.lon||0)};
+          }).filter(function(cn){return cn.name&&cn.lat&&cn.lng;});
+          cargarMapaOSM();
+        })
+        .catch(function(){cargarMapaOSM();});
+      setTimeout(function(){if(!window._callesNombres.length)cargarMapaOSM();},8000);
+    } else { cargarMapaOSM(); }
+  }
+
+  function cargarMapaOSM(){
+    if(!marcadores||!marcadores.length){_enviarDictamen();return;}
+    var lats=marcadores.map(function(o){return o.lat;});
+    var lngs=marcadores.map(function(o){return o.lng;});
+    var cLat=(Math.min.apply(null,lats)+Math.max.apply(null,lats))/2;
+    var cLng=(Math.min.apply(null,lngs)+Math.max.apply(null,lngs))/2;
+    var span=Math.max(Math.max.apply(null,lats)-Math.min.apply(null,lats),
+                      Math.max.apply(null,lngs)-Math.min.apply(null,lngs));
+    var zoom=span>0.02?13:span>0.005?15:17;
+    // Capturar el canvas del mapa Leaflet directamente (mejor calidad)
+    if(map){
+      try{
+        var mapCanvas=document.querySelector('#mapa canvas');
+        if(mapCanvas){
+          window._mapaImgB64=mapCanvas.toDataURL('image/jpeg',0.9);
+          _enviarDictamen();return;
+        }
+      }catch(e){}
+    }
+    // Fallback: staticmap
+    var osmUrl='https://staticmap.openstreetmap.de/staticmap.php?center='+cLat+','+cLng+'&zoom='+zoom+'&size=600x300&format=png';
+    var img=new Image();img.crossOrigin='anonymous';
+    var done=false;
+    var doAfter=function(){if(!done){done=true;_enviarDictamen();}};
+    img.onload=function(){
+      try{
+        var cv=document.createElement('canvas');cv.width=img.width;cv.height=img.height;
+        cv.getContext('2d').drawImage(img,0,0);
+        window._mapaImgB64=cv.toDataURL('image/jpeg',0.88);
+      }catch(e){}
+      doAfter();
+    };
+    img.onerror=function(){doAfter();};
+    img.src=osmUrl;
+    setTimeout(function(){doAfter();},5000);
   }
 }
+
 
 function _enviarDictamen(){
   var folio=g('folio')?g('folio').value:'',fecha=g('fecha')?g('fecha').value:'',hora=g('hora')?g('hora').value:'',supervisor=g('sup')?g('sup').value:'',programa=g('prog')?g('prog').value:'',obs=g('obs')?g('obs').value:'';
@@ -596,8 +651,10 @@ function generarPDF(returnBlob){
   }
 
   // ── TABLA POR ÁRBOL (estructura imagen) ──
-  function tablaArbol(a,idx,tHesc){
+  function tablaArbol(a,idx,tHesc,fsBase,fsHdr){
     var tH=tHesc||6.5;
+    var fsB=fsBase||7;
+    var fsH=fsHdr||6;
     var manejos=[];
     if(a.ch_poda&&a.ch_poda.length)manejos.push('Poda');
     if((a.ch_derribo&&a.ch_derribo.length)||(a.ch_nae_der&&a.ch_nae_der.length))manejos.push('Derribo');
@@ -607,7 +664,7 @@ function generarPDF(returnBlob){
 
     // ── Encabezado árbol ──
     doc.setFillColor.apply(doc,TEAL);doc.rect(M,y,cW,8,'F');
-    doc.setFont('helvetica','bold');doc.setFontSize(9);doc.setTextColor.apply(doc,WH);
+    doc.setFont('helvetica','bold');doc.setFontSize(fsB+1.5);doc.setTextColor.apply(doc,WH);
     doc.text('Árbol #'+(idx+1)+(a.nombre?' — '+a.nombre:''),M+3,y+5.5);
     y+=8;
 
@@ -623,7 +680,7 @@ function generarPDF(returnBlob){
     dc.forEach(function(c){doc.rect(M+c.x,y,c.w,tH,'F');});
     doc.setDrawColor.apply(doc,GC);doc.setLineWidth(0.2);
     dc.forEach(function(c){doc.rect(M+c.x,y,c.w,tH,'S');});
-    doc.setFont('helvetica','bold');doc.setFontSize(5.5);doc.setTextColor.apply(doc,BLK);
+    doc.setFont('helvetica','bold');doc.setFontSize(fsH);doc.setTextColor.apply(doc,BLK);
     dc.forEach(function(c){
       var lines=doc.splitTextToSize(c.t,c.w-1);
       lines.forEach(function(l,li){doc.text(l,M+c.x+c.w/2,y+3+li*3,'center');});
@@ -644,7 +701,7 @@ function generarPDF(returnBlob){
     dc.forEach(function(c){doc.rect(M+c.x,y,c.w,maxH,'F');});
     doc.setDrawColor.apply(doc,GC);doc.setLineWidth(0.2);
     dc.forEach(function(c){doc.rect(M+c.x,y,c.w,maxH,'S');});
-    doc.setFont('helvetica','normal');doc.setFontSize(6.5);doc.setTextColor.apply(doc,BLK);
+    doc.setFont('helvetica','normal');doc.setFontSize(fsB);doc.setTextColor.apply(doc,BLK);
     dc.forEach(function(c,i){
       var s=doc.splitTextToSize(String(dv[i]||''),c.w-2);
       s.forEach(function(l,li){doc.text(l,M+c.x+c.w/2,y+4+li*4,'center');});
@@ -755,16 +812,16 @@ function generarPDF(returnBlob){
     // Manejo izq
     doc.setFillColor.apply(doc,TEAL_L);doc.rect(M,y,LW,mh,'F');
     doc.setDrawColor.apply(doc,GC);doc.setLineWidth(0.2);doc.rect(M,y,LW,mh,'S');
-    doc.setFont('helvetica','bold');doc.setFontSize(7);doc.setTextColor.apply(doc,TEAL);
+    doc.setFont('helvetica','bold');doc.setFontSize(fsH);doc.setTextColor.apply(doc,TEAL);
     doc.text('Manejo forestal:',M+2,y+4);
-    doc.setFont('helvetica','bold');doc.setFontSize(8);doc.setTextColor.apply(doc,TEAL);
+    doc.setFont('helvetica','bold');doc.setFontSize(fsB);doc.setTextColor.apply(doc,TEAL);
     sMT.forEach(function(l,li){doc.text(l,M+2,y+9+li*4);});
     // Fundamento der
     doc.setFillColor(255,255,255);doc.rect(M+LW,y,RW,mh,'F');
     doc.setDrawColor.apply(doc,GC);doc.rect(M+LW,y,RW,mh,'S');
-    doc.setFont('helvetica','bold');doc.setFontSize(7);doc.setTextColor.apply(doc,TEAL);
+    doc.setFont('helvetica','bold');doc.setFontSize(fsH);doc.setTextColor.apply(doc,TEAL);
     doc.text('Fundamento normativo:',M+LW+2,y+4);
-    doc.setFont('helvetica','normal');doc.setFontSize(6.5);doc.setTextColor.apply(doc,BLK);
+    doc.setFont('helvetica','normal');doc.setFontSize(fsH);doc.setTextColor.apply(doc,BLK);
     sFT.forEach(function(l,li){doc.text(l,M+LW+2,y+9+li*4);});
     y+=mh;gap(4);
   }
@@ -925,29 +982,26 @@ function generarPDF(returnBlob){
   tablaDatos();
   gap(2);
 
-  // ── Todas las tablas de árboles en UNA SOLA PÁGINA ──
-  // Estimar altura por árbol: encabezado(8) + hdr cols(6.5) + fila datos(8) +
-  // sub-encabezado eval(6.5) + Copa(8) + Fuste(8) + Raíz(8) + Manejo(10) + gap(4) ≈ 67mm
-  var alturaDisponible=PH-y-14; // espacio restante en página actual
-  var alturaEstimadaXArbol=68;
-  var alturaObs=obs?(doc.splitTextToSize(obs,cW-4).length*4.5+14):0;
-  var alturaTotal=arboles.length*alturaEstimadaXArbol+alturaObs;
+  // ── Todas las tablas (máx 5 árboles) en UNA SOLA PÁGINA ──
+  // Espacio disponible tras cabecera y tablaDatos
+  var alturaDisponible=PH-y-16;
+  var alturaObs=obs?(Math.ceil(obs.length/80)*4.5+18):0;
+  var espacioArboles=alturaDisponible-alturaObs;
 
-  // Si no caben en el espacio restante de página 1, nueva página
-  if(alturaTotal>alturaDisponible){doc.addPage();cabecera();alturaDisponible=PH-y-14;}
+  // Cada tabla tiene: hdr árbol(7) + hdr cols(tH) + fila vals(tH*1.3) +
+  // sub-hdr eval(tH) + Copa(tH*1.5) + Fuste(tH*1.5) + Raíz(tH*1.2) + Manejo(tH*1.5) + gap(3)
+  // Total ≈ tH*9.5 + 10 por árbol
+  // Despejando tH: tH = (espacioArboles - arboles.length*10) / (arboles.length*9.5)
+  var n=Math.min(arboles.length,5);
+  var tHesc=(espacioArboles-n*10)/(n*9.5);
+  tHesc=Math.max(4,Math.min(7,tHesc)); // entre 4mm y 7mm por fila
 
-  // Calcular factor de escala si las tablas son muy largas
-  // La altura base por árbol es ~68mm; si no caben, reducir proporcionalmente
-  var escala=1;
-  if(alturaTotal>alturaDisponible){
-    escala=alturaDisponible/alturaTotal;
-    escala=Math.max(0.55,Math.min(1,escala)); // mínimo 55% del tamaño
-  }
-  // Aplicar escala al tH global para esta sección
-  var tHesc=Math.max(4.5,6.5*escala);
+  // Tamaños de fuente proporcionales al tH
+  var fsBase=Math.max(5,Math.min(7.5,tHesc*1.05));
+  var fsHdr =Math.max(4.5,Math.min(6.5,tHesc*0.9));
 
   arboles.forEach(function(a,idx){
-    tablaArbol(a,idx,tHesc);
+    tablaArbol(a,idx,tHesc,fsBase,fsHdr);
   });
 
   // Observaciones generales después de todos los árboles
