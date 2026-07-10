@@ -456,8 +456,8 @@ function _enviarDictamen(){
   reader.readAsDataURL(pdfBlob);
 }
 
-function nuevoArbol(n){return{id:Date.now()+'_'+n,nombre:'Árbol '+n,especie:'',cientifico:'',altura:'',dap:'',fase:null,estado:null,ciclo:null,ram:null,ch_raiz:[],ch_fuste:[],ch_copa:[],ch_plagas:[],ch_diana:[],sitio:null,sitio_otro:'',pct_poda:'',ch_req:[],ch_poda:[],ch_derribo:[],ch_nae_tras:[],ch_nae_der:[],compensacion:null,riesgo:null,notas:'',notas_r:'',notas_raiz:'',notas_fuste:'',notas_copa:'',_pts:0};}
-function calcPts(a){var p=a.ch_raiz.length+a.ch_fuste.length+a.ch_copa.length+(a.ch_plagas?a.ch_plagas.length:0);if(a.ch_diana.length>0)p+=1;if(a.sitio)p+=1;a._pts=p;if(p<=5)a.riesgo='bajo';else if(p<=16)a.riesgo='medio';else a.riesgo='alto';}
+function nuevoArbol(n){return{id:Date.now()+'_'+n,nombre:'Árbol '+n,especie:'',cientifico:'',altura:'',dap:'',fase:null,estado:null,ciclo:null,ram:null,ch_raiz:[],ch_fuste:[],ch_copa:[],ch_plagas:[],ch_diana:[],sitio:null,sitio_otro:'',pct_poda:'',tipo_poda:'',ch_req:[],ch_poda:[],ch_derribo:[],ch_nae_tras:[],ch_nae_der:[],compensacion:null,riesgo:null,notas:'',notas_r:'',notas_raiz:'',notas_fuste:'',notas_copa:'',_pts:0};}
+function calcPts(a){var p=(a.ch_raiz||[]).length+(a.ch_fuste||[]).length+(a.ch_copa||[]).length+(a.ch_diana||[]).length;a._pts=p;if(p<=5)a.riesgo='bajo';else if(p<=16)a.riesgo='medio';else a.riesgo='alto';}
 function getProg(a){var d=0;if(a.especie)d++;if(a.estado)d++;if(a.ch_raiz.length||a.ch_fuste.length)d++;if(a.ch_copa.length||a.ch_plagas.length)d++;if(a.sitio||a.ch_diana.length)d++;if(a.riesgo)d++;return{done:d,total:6};}
 function getBadge(a){if(!a.riesgo)return['bvac','—'];if(a.riesgo==='alto')return['balt','🔴 Alto'];if(a.riesgo==='medio')return['bmed','🟡 Medio'];return['bok','⚪ OK'];}
 
@@ -548,10 +548,12 @@ function buildArbol(id){
   h+=acord('p3','Art. IV — Fitosanitaria',bChks(a,'ch_poda',[['w','a) Eliminación de ramas muertas, plagadas o enfermas'],['w','b) Ramas con hongos, cancros o pudriciones visibles'],['w','c) Eliminación de plantas parásitas o trepadoras']]));
   h+=acord('p4','Art. V — Restauración de estructura',bChks(a,'ch_poda',[['','a) Árboles podados más del 25% o con desmoches previos'],['','b) Copas desbalanceadas que requieren reequilibrio'],['','c) Follaje reprimido que requiere formación o topiaria']]));
   h+=acord('p5','Art. VI — Afectación a infraestructura',bChks(a,'ch_poda',[['w','a) Interferencia con tuberías de agua o drenaje'],['w','b) Daño o riesgo a cableado eléctrico o telecomunicaciones'],['w','c) Levantamiento de banquetas o guarniciones por ramas bajas'],['w','d) Interferencia con bardas, muros o construcciones']]));
-  // Campo % de poda (siempre visible en sección poda)
-  h+='<div class="field" style="margin-top:10px;display:flex;align-items:center;gap:10px;">';
+  // Campos tipo de poda y % poda
+  h+='<div class="field" style="margin-top:10px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">';
+  h+='<label style="font-weight:600;font-size:13px;white-space:nowrap;">Tipo de poda:</label>';
+  h+='<input type="text" placeholder="Ej. Fitosanitaria, Mantenimiento..." value="'+(a.tipo_poda||'')+'" oninput="sf(\'tipo_poda\',this.value)" style="padding:7px 10px;border-radius:6px;border:1px solid var(--gc);font-size:13px;font-family:inherit;flex:1;min-width:130px;">';
   h+='<label style="font-weight:600;font-size:13px;white-space:nowrap;">% de poda:</label>';
-  h+='<input type="number" min="0" max="100" placeholder="Ej. 25" value="'+(a.pct_poda||'')+'" oninput="sf(\'pct_poda\',this.value)" style="width:90px;padding:7px 10px;border-radius:6px;border:1px solid var(--gc);font-size:14px;font-family:inherit;">';
+  h+='<input type="number" min="0" max="100" placeholder="25" value="'+(a.pct_poda||'')+'" oninput="sf(\'pct_poda\',this.value)" style="width:70px;padding:7px 10px;border-radius:6px;border:1px solid var(--gc);font-size:14px;font-family:inherit;">';
   h+='<span style="font-size:13px;color:#888;">%</span></div>';
   h+='</div>';
   h+='<p class="stitle">🪓 Derribo — Reglamento Zapopan</p><div style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px;">';
@@ -684,14 +686,15 @@ function generarPDF(returnBlob){
     doc.setFillColor.apply(doc,TEAL);doc.rect(M,y,cW,8,'F');
     doc.setFont('helvetica','bold');doc.setFontSize(fsB+1.5);doc.setTextColor.apply(doc,WH);
     doc.text('Árbol #'+(idx+1)+(a.nombre?' — '+a.nombre:''),M+3,y+5.5);
+    if(sitioTxt){doc.setFont('helvetica','normal');doc.setFontSize(fsH);doc.setTextColor.apply(doc,WH);doc.text('Sitio: '+sitioTxt,W-M-2,y+5.5,'right');}
     y+=8;
 
     // ── Fila encabezados datos generales ──
     var dc=[
-      {t:'Nombre común',w:28},{t:'Nombre científico',w:34},
-      {t:'Altura',w:14},{t:'DAP',w:14},{t:'Sitio',w:22},
-      {t:'Estado físico',w:20},{t:'Fase fenológica',w:20},
-      {t:'Ciclo biológico',w:20},{t:'Ramificación',w:cW-172}
+      {t:'Nombre común',w:30},{t:'Nombre científico',w:38},
+      {t:'Altura',w:16},{t:'DAP',w:16},
+      {t:'Estado físico',w:22},{t:'Fase fenológica',w:22},
+      {t:'Ciclo biológico',w:22},{t:'Ramificación',w:cW-166}
     ];
     var xA=0;dc.forEach(function(c){c.x=xA;xA+=c.w;});
     doc.setFillColor.apply(doc,GOLD_L);
@@ -708,7 +711,7 @@ function generarPDF(returnBlob){
     // ── Fila valores datos generales ──
     var dv=[a.especie||'—',a.cientifico||'—',
             a.altura?a.altura+' m':'—',a.dap?a.dap+' cm':'—',
-            sitioTxt||'—',a.estado||'—',a.fase||'—',a.ciclo||'—',a.ram||'—'];
+            a.estado||'—',a.fase||'—',a.ciclo||'—',a.ram||'—'];
     // Calcular altura máxima de fila
     var maxH=tH;
     dc.forEach(function(c,i){
@@ -821,27 +824,45 @@ function generarPDF(returnBlob){
 
     // ── Fila Manejo forestal + Fundamento normativo ──
     var manejoTxt=manejos.join(' / ');
+    // Fundamento: artículo + inciso desde opciones seleccionadas
     var arts=[].concat(a.ch_poda||[],a.ch_derribo||[],a.ch_nae_der||[],a.ch_nae_tras||[]);
-    var fundTxt=arts.length?arts.join('; '):'—';
+    var fundTxt=arts.length?arts.map(function(art,ai){
+      // Extraer nombre del acord padre si está embebido, si no usar el texto directo
+      return art.replace(/^([a-z]\))/,'Inciso $1');
+    }).join(' | '):'—';
     var sMT=doc.splitTextToSize(manejoTxt,LW-20);
     var sFT=doc.splitTextToSize(fundTxt,RW-6);
     var mh=Math.max(tH*2,Math.max(sMT.length,sFT.length)*4+4);
     chkPg(mh);
-    // Manejo izq
-    doc.setFillColor.apply(doc,TEAL_L);doc.rect(M,y,LW,mh,'F');
-    doc.setDrawColor.apply(doc,GC);doc.setLineWidth(0.2);doc.rect(M,y,LW,mh,'S');
+    // Fila 1: Manejo forestal (izq) | Tipo de poda + % (der)
+    var tipoPodaTxt=(a.tipo_poda||'')+(a.pct_poda?' — '+a.pct_poda+'%':'');
+    var sTP=doc.splitTextToSize(tipoPodaTxt||'—',RW-6);
+    var mh1=Math.max(tH*1.5,Math.max(sMT.length,sTP.length)*4+4);
+    // Izq: Manejo
+    doc.setFillColor.apply(doc,TEAL_L);doc.rect(M,y,LW,mh1,'F');
+    doc.setDrawColor.apply(doc,GC);doc.setLineWidth(0.2);doc.rect(M,y,LW,mh1,'S');
     doc.setFont('helvetica','bold');doc.setFontSize(fsH);doc.setTextColor.apply(doc,TEAL);
     doc.text('Manejo forestal:',M+2,y+4);
     doc.setFont('helvetica','bold');doc.setFontSize(fsB);doc.setTextColor.apply(doc,TEAL);
-    sMT.forEach(function(l,li){doc.text(l,M+2,y+9+li*4);});
-    // Fundamento der
-    doc.setFillColor(255,255,255);doc.rect(M+LW,y,RW,mh,'F');
-    doc.setDrawColor.apply(doc,GC);doc.rect(M+LW,y,RW,mh,'S');
+    sMT.forEach(function(l,li){doc.text(l,M+2,y+4+tH*0.6+li*4);});
+    // Der: Tipo + % poda
+    doc.setFillColor(255,255,255);doc.rect(M+LW,y,RW,mh1,'F');
+    doc.setDrawColor.apply(doc,GC);doc.rect(M+LW,y,RW,mh1,'S');
     doc.setFont('helvetica','bold');doc.setFontSize(fsH);doc.setTextColor.apply(doc,TEAL);
-    doc.text('Fundamento normativo:',M+LW+2,y+4);
+    doc.text('Tipo / % poda:',M+LW+2,y+4);
     doc.setFont('helvetica','normal');doc.setFontSize(fsH);doc.setTextColor.apply(doc,BLK);
-    sFT.forEach(function(l,li){doc.text(l,M+LW+2,y+9+li*4);});
-    y+=mh;gap(4);
+    sTP.forEach(function(l,li){doc.text(l,M+LW+2,y+4+tH*0.6+li*4);});
+    y+=mh1;
+    // Fila 2: Fundamento normativo (ancho completo)
+    var sFT2=doc.splitTextToSize(fundTxt,cW-6);
+    var mh2=Math.max(tH*1.5,sFT2.length*4+4);
+    doc.setFillColor.apply(doc,TEAL_L);doc.rect(M,y,cW,mh2,'F');
+    doc.setDrawColor.apply(doc,GC);doc.rect(M,y,cW,mh2,'S');
+    doc.setFont('helvetica','bold');doc.setFontSize(fsH);doc.setTextColor.apply(doc,TEAL);
+    doc.text('Fundamento normativo:',M+2,y+4);
+    doc.setFont('helvetica','normal');doc.setFontSize(fsH);doc.setTextColor.apply(doc,BLK);
+    sFT2.forEach(function(l,li){doc.text(l,M+2,y+4+tH*0.6+li*4);});
+    y+=mh2;gap(3);
   }
 
   // ── CROQUIS ──
