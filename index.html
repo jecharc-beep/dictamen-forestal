@@ -545,7 +545,7 @@ function generarPDF(returnBlob){
 
   var pH=doc.internal.pageSize.height;
   var y=M;
-  function chk(n){if(y+n>pH-10){doc.addPage();cabecera();}}
+  function chkPg(n){if(y+n>pH-10){doc.addPage();cabecera();}}
   function gap(n){y+=n||3;}
 
   // ── CABECERA ──
@@ -570,7 +570,7 @@ function generarPDF(returnBlob){
 
   // ── TABLA DATOS GENERALES (portada) ──
   function tablaDatos(){
-    chk(18);
+    chkPg(18);
     var cols=[
       {t:'SOLICITUD',w:26},{t:'FECHA',w:22},{t:'SUPERVISOR (A)',w:52},
       {t:'PROGRAMA',w:40},{t:'ARBOLES',w:cW-140}
@@ -599,7 +599,7 @@ function generarPDF(returnBlob){
   function tablaArbol(a,idx){
     var tH=6.5; // altura fila base
     var needed=80;
-    chk(needed);
+    chkPg(needed);
 
     // ── Encabezado árbol ──
     doc.setFillColor.apply(doc,TEAL);doc.rect(M,y,cW,8,'F');
@@ -688,7 +688,7 @@ radicular',data:a.ch_raiz,notas:a.notas_raiz}
       var sH=doc.splitTextToSize(hallazgos,LW-20);
       var h=Math.max(tH*2,Math.max(sL.length,sH.length)*4+4);
 
-      chk(h);
+      chkPg(h);
       // Fondo izq
       if(ei%2===0){doc.setFillColor(255,255,255);}else{doc.setFillColor.apply(doc,GOLD_L);}
       doc.rect(M,y,LW,h,'F');
@@ -754,7 +754,7 @@ radicular',data:a.ch_raiz,notas:a.notas_raiz}
     var sMT=doc.splitTextToSize(manejoTxt,LW-20);
     var sFT=doc.splitTextToSize(fundTxt,RW-6);
     var mh=Math.max(tH*2,Math.max(sMT.length,sFT.length)*4+4);
-    chk(mh);
+    chkPg(mh);
     // Manejo izq
     doc.setFillColor.apply(doc,TEAL_L);doc.rect(M,y,LW,mh,'F');
     doc.setDrawColor.apply(doc,GC);doc.setLineWidth(0.2);doc.rect(M,y,LW,mh,'S');
@@ -775,7 +775,7 @@ radicular',data:a.ch_raiz,notas:a.notas_raiz}
   // ── CROQUIS ──
   function seccionCroquis(){
     if(!marcadores||!marcadores.length)return;
-    chk(90);
+    chkPg(90);
     doc.setFillColor.apply(doc,TEAL_L);doc.rect(M,y,cW,7,'F');
     doc.setFont('helvetica','bold');doc.setFontSize(8.5);doc.setTextColor.apply(doc,TEAL);
     doc.text('Mapa / Croquis de georreferenciación',M+4,y+5);y+=9;
@@ -878,7 +878,7 @@ radicular',data:a.ch_raiz,notas:a.notas_raiz}
     fotosArr.forEach(function(fs,fi){
       var col=fi%3;
       if(col===0&&fi>0){y+=fH+12;}
-      if(fi===0||col===0)chk(fH+14);
+      if(fi===0||col===0)chkPg(fH+14);
       var fx=M+col*(fW+4),fy=y;
       doc.setFont('helvetica','bold');doc.setFontSize(7);doc.setTextColor.apply(doc,TEAL);
       doc.text('Foto '+(fi+1),fx,fy-1.5);
@@ -893,7 +893,7 @@ radicular',data:a.ch_raiz,notas:a.notas_raiz}
 
   // ── FIRMAS ──
   function seccionFirmas(){
-    chk(38);
+    chkPg(38);
     doc.setFillColor.apply(doc,TEAL_L);doc.rect(M,y,cW,7,'F');
     doc.setFont('helvetica','bold');doc.setFontSize(8.5);doc.setTextColor.apply(doc,TEAL);
     doc.text('Validación y firmas',M+4,y+5);y+=9;
@@ -927,7 +927,7 @@ radicular',data:a.ch_raiz,notas:a.notas_raiz}
 
   // Observaciones
   if(obs){
-    chk(14);
+    chkPg(14);
     doc.setFillColor.apply(doc,TEAL_L);doc.rect(M,y,cW,7,'F');
     doc.setFont('helvetica','bold');doc.setFontSize(8);doc.setTextColor.apply(doc,TEAL);
     doc.text('Observaciones generales',M+4,y+5);y+=7;
