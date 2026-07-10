@@ -609,10 +609,10 @@ function generarPDF(returnBlob){
 
     // ── Fila encabezados datos generales ──
     var dc=[
-      {t:'No.',w:8},{t:'Nombre común',w:22},{t:'Nombre científico',w:28},
-      {t:'Altura',w:13},{t:'DAP',w:13},{t:'Manejo',w:22},{t:'Sitio',w:18},
-      {t:'Estado físico',w:18},{t:'Fase fenológica',w:18},
-      {t:'Ciclo biológico',w:18},{t:'Ramificación',w:cW-180}
+      {t:'Nombre común',w:28},{t:'Nombre científico',w:34},
+      {t:'Altura',w:14},{t:'DAP',w:14},{t:'Sitio',w:22},
+      {t:'Estado físico',w:20},{t:'Fase fenológica',w:20},
+      {t:'Ciclo biológico',w:20},{t:'Ramificación',w:cW-172}
     ];
     var xA=0;dc.forEach(function(c){c.x=xA;xA+=c.w;});
     doc.setFillColor.apply(doc,GOLD_L);
@@ -633,9 +633,9 @@ function generarPDF(returnBlob){
     if(a.ch_nae_tras&&a.ch_nae_tras.length)mL.push('Trasplante');
     if(!mL.length)mL.push('Sin manejo');
     var sitioTxt=(a.sitio||'')+(a.sitio_otro?' — '+a.sitio_otro:'');
-    var dv=[String(idx+1),a.especie||'—',a.cientifico||'—',
+    var dv=[a.especie||'—',a.cientifico||'—',
             a.altura?a.altura+' m':'—',a.dap?a.dap+' cm':'—',
-            mL.join('/'),sitioTxt||'—',a.estado||'—',a.fase||'—',a.ciclo||'—',a.ram||'—'];
+            sitioTxt||'—',a.estado||'—',a.fase||'—',a.ciclo||'—',a.ram||'—'];
     // Calcular altura máxima de fila
     var maxH=tH;
     dc.forEach(function(c,i){
@@ -728,7 +728,7 @@ function generarPDF(returnBlob){
         doc.setDrawColor.apply(doc,GC);doc.rect(M+LW+hw2,y,hw2,h,'S');
         doc.setFont('helvetica','bold');doc.setFontSize(6.5);doc.setTextColor.apply(doc,TEAL);
         doc.text('Riesgo:',M+LW+hw2+2,y+4);
-        doc.setFont('helvetica','bold');doc.setFontSize(9);doc.setTextColor.apply(doc,rCol);
+        doc.setFont('helvetica','bold');doc.setFontSize(7);doc.setTextColor.apply(doc,rCol);
         doc.text(rLabel,M+LW+hw2+2,y+10);
         doc.setFont('helvetica','normal');doc.setFontSize(6.5);doc.setTextColor.apply(doc,BLK);
         doc.text('Pts: '+(a._pts||0),M+LW+hw2+2,y+16);
@@ -924,26 +924,26 @@ function generarPDF(returnBlob){
   tablaDatos();
   gap(2);
 
-  // Observaciones
-  if(obs){
-    chkPg(14);
-    doc.setFillColor.apply(doc,TEAL_L);doc.rect(M,y,cW,7,'F');
-    doc.setFont('helvetica','bold');doc.setFontSize(8);doc.setTextColor.apply(doc,TEAL);
-    doc.text('Observaciones generales',M+4,y+5);y+=7;
-    var obsL=doc.splitTextToSize(obs,cW-4);
-    var oh=Math.max(8,obsL.length*4.5+4);
-    doc.setFillColor(255,255,255);doc.rect(M,y,cW,oh,'F');
-    doc.setDrawColor.apply(doc,GC);doc.setLineWidth(0.2);doc.rect(M,y,cW,oh,'S');
-    doc.setFont('helvetica','normal');doc.setFontSize(8);doc.setTextColor.apply(doc,BLK);
-    obsL.forEach(function(l,i){doc.text(l,M+3,y+4.5+i*4.5);});
-    y+=oh;gap(3);
-  }
-
-  // Croquis
-  seccionCroquis();
-
-  // Tablas por árbol
-  arboles.forEach(function(a,idx){tablaArbol(a,idx);});
+  // Tablas por árbol (con observaciones y croquis después de cada árbol)
+  arboles.forEach(function(a,idx){
+    tablaArbol(a,idx);
+    // Observaciones generales después de la tabla del árbol
+    if(idx===0&&obs){
+      chkPg(14);
+      doc.setFillColor.apply(doc,TEAL_L);doc.rect(M,y,cW,7,'F');
+      doc.setFont('helvetica','bold');doc.setFontSize(8);doc.setTextColor.apply(doc,TEAL);
+      doc.text('Observaciones generales',M+4,y+5);y+=7;
+      var obsL2=doc.splitTextToSize(obs,cW-4);
+      var oh2=Math.max(8,obsL2.length*4.5+4);
+      doc.setFillColor(255,255,255);doc.rect(M,y,cW,oh2,'F');
+      doc.setDrawColor.apply(doc,GC);doc.setLineWidth(0.2);doc.rect(M,y,cW,oh2,'S');
+      doc.setFont('helvetica','normal');doc.setFontSize(8);doc.setTextColor.apply(doc,BLK);
+      obsL2.forEach(function(l,i){doc.text(l,M+3,y+4.5+i*4.5);});
+      y+=oh2;gap(3);
+    }
+    // Croquis y coordenadas después de observaciones (solo árbol 1)
+    if(idx===0)seccionCroquis();
+  });
 
   // Firmas
   seccionFirmas();
