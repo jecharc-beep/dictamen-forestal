@@ -802,7 +802,7 @@ function generarPDF(returnBlob){
     });
 
     // ── Fila Manejo forestal + Fundamento normativo ──
-    var manejoTxt=mL.join(' / ');
+    var manejoTxt=manejos.join(' / ');
     var arts=[].concat(a.ch_poda||[],a.ch_derribo||[],a.ch_nae_der||[],a.ch_nae_tras||[]);
     var fundTxt=arts.length?arts.join('; '):'—';
     var sMT=doc.splitTextToSize(manejoTxt,LW-20);
