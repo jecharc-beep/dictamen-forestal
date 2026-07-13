@@ -372,7 +372,7 @@ function finalizarDictamen(){
     var cLng=(Math.min.apply(null,lngs)+Math.max.apply(null,lngs))/2;
     var span=Math.max(Math.max.apply(null,lats)-Math.min.apply(null,lats),
                       Math.max.apply(null,lngs)-Math.min.apply(null,lngs));
-    var zoom=span>0.02?13:span>0.005?15:17;
+    var zoom=span>0.02?14:span>0.005?16:18;
 
     // Capturar tiles OSM directamente en canvas
     var tileSize=256, cols=3, rows=3;
@@ -914,7 +914,7 @@ function generarPDF(returnBlob){
     var lngs=marcadores.map(function(o){return o.lng;});
     var minLat=Math.min.apply(null,lats),maxLat=Math.max.apply(null,lats);
     var minLng=Math.min.apply(null,lngs),maxLng=Math.max.apply(null,lngs);
-    var pad=0.28,dLat=maxLat-minLat||0.001,dLng=maxLng-minLng||0.001;
+    var pad=0.15,dLat=maxLat-minLat||0.0005,dLng=maxLng-minLng||0.0005;
     minLat-=dLat*pad;maxLat+=dLat*pad;minLng-=dLng*pad;maxLng+=dLng*pad;
     function toX(lng){return mX+((lng-minLng)/(maxLng-minLng))*mW;}
     function toY2(lat){return mY+mH-((lat-minLat)/(maxLat-minLat))*mH;}
@@ -1130,7 +1130,13 @@ function iniciarMapa(){
     var lk=document.createElement('link');lk.rel='stylesheet';lk.href='https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css';
     document.head.appendChild(lk);
     setTimeout(function(){
-      map=L.map('lmap').setView([20.7214,-103.4067],15);
+      map=L.map('lmap',{zoomControl:true,maxZoom:20}).setView([20.7214,-103.4067],18);
+      // Crosshair en centro del mapa como referencia
+      var crossEl=document.createElement('div');
+      crossEl.style.cssText='position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);pointer-events:none;z-index:1000;font-size:24px;line-height:1;';
+      crossEl.textContent='＋';
+      crossEl.id='map-cross';
+      document.getElementById('lmap').appendChild(crossEl);
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OSM',maxZoom:19,crossOrigin:true}).addTo(map);
       map.on('click',function(e){
         if(!modoMarcado)return;
@@ -1144,7 +1150,7 @@ function iniciarMapa(){
   document.head.appendChild(js);
 }
 function ubicarArbol(){if(!map)return;modoMarcado=!modoMarcado;g('btn-ubicar').textContent=modoMarcado?'✋ Cancelar':'📍 Marcar árbol';g('mlabel').textContent=modoMarcado?'Toca el mapa…':'Cancelado';}
-function usarGPS(){if(!navigator.geolocation){toast('GPS no disponible');return;}g('mlabel').textContent='📡 Obteniendo ubicación…';navigator.geolocation.getCurrentPosition(function(p){var la=p.coords.latitude,lo=p.coords.longitude;if(map)map.setView([la,lo],17);addMarker(la,lo);g('mlabel').textContent='✅ GPS marcado';},function(){g('mlabel').textContent='GPS no disponible';});}
+function usarGPS(){if(!navigator.geolocation){toast('GPS no disponible');return;}g('mlabel').textContent='📡 Obteniendo ubicación…';navigator.geolocation.getCurrentPosition(function(p){var la=p.coords.latitude,lo=p.coords.longitude;if(map)map.setView([la,lo],19);addMarker(la,lo);g('mlabel').textContent='✅ GPS marcado';},function(){g('mlabel').textContent='GPS no disponible';});}
 function addMarker(lat,lng){if(!map)return;var n=marcadores.length+1;var ic=L.divIcon({className:'',html:'<div style="background:#2D6A2D;color:white;border-radius:50%;width:30px;height:30px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;border:3px solid white;box-shadow:0 2px 6px rgba(0,0,0,.4)">'+n+'</div>',iconSize:[30,30],iconAnchor:[15,15]});var m=L.marker([lat,lng],{icon:ic}).addTo(map).bindPopup('<b>Árbol #'+n+'</b><br>'+lat.toFixed(5)+', '+lng.toFixed(5));marcadores.push({m:m,lat:lat,lng:lng});updCoords();guardarAuto();}
 function limpiarMarcadores(){marcadores.forEach(function(o){if(map)map.removeLayer(o.m);});marcadores=[];updCoords();toast('🗑 Marcadores eliminados');}
 function updCoords(){var c=g('coords-wrap');if(!c)return;if(!marcadores.length){c.style.display='none';return;}c.style.display='block';c.innerHTML='<div style="background:var(--vb);border:2px solid var(--vl);border-radius:var(--radius-sm);padding:10px;"><p style="font-size:12px;font-weight:700;color:var(--v);margin-bottom:6px;">📍 '+marcadores.length+' árbol(es) marcado(s)</p>'+marcadores.map(function(o,i){return'<div style="font-size:12px;color:var(--gm);margin-bottom:3px;">🌳 #'+(i+1)+' · '+o.lat.toFixed(5)+', '+o.lng.toFixed(5)+'</div>';}).join('')+'</div>';}
