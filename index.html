@@ -542,23 +542,23 @@ function buildArbol(id){
     h+='<div class="rbtn '+r.k+(a.riesgo===r.k?' sel':'')+'" onclick="setRiesgo(\''+r.k+'\')">'+'<div class="dot"></div><div class="rl">'+r.l+'</div><div class="rd2">'+r.d+'</div></div>';
   });
   h+='</div><div class="sep"></div>';
-  h+='<p class="stitle">✂️ Poda — Reglamento Zapopan</p><div style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px;">';
-  h+=acord('p1','Art. I — Inminente peligro',bChks(a,'ch_poda',[['w','a) Interferencia con líneas de conducción aérea'],['w','b) Ramas bajas que obstruyen el paso peatonal o vehicular'],['w','c) Impedimento a luminarias y señales de tráfico'],['d','d) Ramas con riesgo de desgajarse'],['d','e) Árboles de porte alto con riesgo de desplome'],['w','f) Ubicados en sitios inadecuados o que dañen la vía pública']]));
-  h+=acord('p2','Art. II — Mantenimiento de la salud del árbol',bChks(a,'ch_poda',[['','a) Regular crecimiento radicular, de copa y follaje'],['','b) Suprimir ramas mal orientadas o con crecimiento anómalo'],['','c) Mejorar visibilidad sin realizar podas excesivas']]));
-  h+=acord('p3','Art. IV — Fitosanitaria',bChks(a,'ch_poda',[['w','a) Eliminación de ramas muertas, plagadas o enfermas'],['w','b) Ramas con hongos, cancros o pudriciones visibles'],['w','c) Eliminación de plantas parásitas o trepadoras']]));
-  h+=acord('p4','Art. V — Restauración de estructura',bChks(a,'ch_poda',[['','a) Árboles podados más del 25% o con desmoches previos'],['','b) Copas desbalanceadas que requieren reequilibrio'],['','c) Follaje reprimido que requiere formación o topiaria']]));
-  h+=acord('p5','Art. VI — Afectación a infraestructura',bChks(a,'ch_poda',[['w','a) Interferencia con tuberías de agua o drenaje'],['w','b) Daño o riesgo a cableado eléctrico o telecomunicaciones'],['w','c) Levantamiento de banquetas o guarniciones por ramas bajas'],['w','d) Interferencia con bardas, muros o construcciones']]));
+  h+='<p class="stitle">✂️ Poda Art. 33 — Reglamento Zapopan</p><div style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px;">';
+  h+=acord('p1','Fracción I — Inminente peligro',bChks(a,'ch_poda',[['w','a) Interferencia con líneas de conducción aérea'],['w','b) Ramas bajas que obstruyen el paso peatonal o vehicular'],['w','c) Impedimento a luminarias y señales de tráfico'],['d','d) Ramas con riesgo de desgajarse'],['d','e) Árboles de porte alto con riesgo de desplome'],['w','f) Ubicados en sitios inadecuados o que dañen la vía pública']]));
+  h+=acord('p2','Fracción II — Mantenimiento de la salud del árbol',bChks(a,'ch_poda',[['','a) Regular crecimiento radicular, de copa y follaje'],['','b) Suprimir ramas mal orientadas o con crecimiento anómalo'],['','c) Mejorar visibilidad sin realizar podas excesivas']]));
+  h+=acord('p3','Fracción IV — Fitosanitaria',bChks(a,'ch_poda',[['w','a) Eliminación de ramas muertas, plagadas o enfermas'],['w','b) Ramas con hongos, cancros o pudriciones visibles'],['w','c) Eliminación de plantas parásitas o trepadoras']]));
+  h+=acord('p4','Fracción V — Restauración de estructura',bChks(a,'ch_poda',[['','a) Árboles podados más del 25% o con desmoches previos'],['','b) Copas desbalanceadas que requieren reequilibrio'],['','c) Follaje reprimido que requiere formación o topiaria']]));
+  h+=acord('p5','Fracción VI — Afectación a infraestructura',bChks(a,'ch_poda',[['w','a) Interferencia con tuberías de agua o drenaje'],['w','b) Daño o riesgo a cableado eléctrico o telecomunicaciones'],['w','c) Levantamiento de banquetas o guarniciones por ramas bajas'],['w','d) Interferencia con bardas, muros o construcciones']]));
   // Campos tipo de poda y % poda
   h+='<div class="field" style="margin-top:10px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">';
   h+='<label style="font-weight:600;font-size:13px;white-space:nowrap;">Tipo de poda:</label>';
   h+='<input type="text" placeholder="Ej. Fitosanitaria, Mantenimiento..." value="'+(a.tipo_poda||'')+'" oninput="sf(\'tipo_poda\',this.value)" style="padding:7px 10px;border-radius:6px;border:1px solid var(--gc);font-size:13px;font-family:inherit;flex:1;min-width:130px;">';
   h+='<label style="font-weight:600;font-size:13px;white-space:nowrap;">% de poda:</label>';
-  h+='<input type="number" min="0" max="100" placeholder="25" value="'+(a.pct_poda||'')+'" oninput="sf(\'pct_poda\',this.value)" style="width:70px;padding:7px 10px;border-radius:6px;border:1px solid var(--gc);font-size:14px;font-family:inherit;">';
+  h+='<input type="number" min="0" max="25" placeholder="25" value="'+(a.pct_poda||'')+'" oninput="sf(\'pct_poda\',this.value)" style="width:70px;padding:7px 10px;border-radius:6px;border:1px solid var(--gc);font-size:14px;font-family:inherit;">';
   h+='<span style="font-size:13px;color:#888;">%</span></div>';
   h+='</div>';
-  h+='<p class="stitle">🪓 Derribo — Reglamento Zapopan</p><div style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px;">';
-  h+=acord('d1','Art. I–V — Criterios generales',bChks(a,'ch_derribo',[['d','I. Inminente peligro de desplome (≤24h)'],['d','II. Enfermedad o plaga terminal sin posibilidad de recuperación'],['d','III. Daño comprobado a personas o infraestructura'],['w','IV. Levantamiento severo de aceras y guarniciones'],['','V. Requerimiento de obra pública prioritaria']]));
-  h+=acord('d2','Art. VI–VIII — Criterios adicionales',bChks(a,'ch_derribo',[['','VI. Ordenamiento o reordenamiento territorial'],['w','VII. Dictamen de protección civil por riesgo estructural'],['','VIII. Proyectos privados con autorización municipal']]));
+  h+='<p class="stitle">🪓 Derribo Art. 35 — Reglamento Zapopan</p><div style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px;">';
+  h+=acord('d1','Fracción I–V — Criterios generales',bChks(a,'ch_derribo',[['d','I. Inminente peligro de desplome (≤24h)'],['d','II. Enfermedad o plaga terminal sin posibilidad de recuperación'],['d','III. Daño comprobado a personas o infraestructura'],['w','IV. Levantamiento severo de aceras y guarniciones'],['','V. Requerimiento de obra pública prioritaria']]));
+  h+=acord('d2','Fracción VI–VIII — Criterios adicionales',bChks(a,'ch_derribo',[['','VI. Ordenamiento o reordenamiento territorial'],['w','VII. Dictamen de protección civil por riesgo estructural'],['','VIII. Proyectos privados con autorización municipal']]));
   h+='</div>';
   h+='<p class="stitle">📋 NAE-SEMADES 001/2003</p><div style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px;">';
   h+=acord('nae1','Trasplante — 5.4.1 al 5.4.7',bChks(a,'ch_nae_tras',[['','5.4.1 El fuste de grosor invade banquetas o caminos peatonales'],['','5.4.2 Ubicado en camellones o cruceros generando falta de visibilidad'],['','5.4.3 Obstruye acceso a cochera o entrada vehicular'],['w','5.4.4 Puede ocasionar daños a bienes públicos o privados'],['','5.4.5 Requerido por obra de ingeniería civil de interés público'],['','5.4.6 Remodelación o rehabilitación de áreas verdes'],['','5.4.7 Proyecto arquitectónico que permite su reubicación']]));
@@ -647,10 +647,10 @@ function generarPDF(returnBlob){
   function tablaDatos(){
     chkPg(18);
     var cols=[
-      {t:'SOLICITUD',w:26},{t:'FECHA',w:22},{t:'SUPERVISOR (A)',w:52},
-      {t:'PROGRAMA',w:40},{t:'ARBOLES',w:cW-140}
+      {t:'ARBOLES',w:20},{t:'FECHA',w:22},{t:'SUPERVISOR (A)',w:52},
+      {t:'PROGRAMA',w:40},{t:'SOLICITUD',w:cW-134}
     ];
-    var vals=[folio||'—',fecha||'—',sup||'—',prog||'—',String(arboles.length)];
+    var vals=[String(arboles.length),fecha||'—',sup||'—',prog||'—',folio||'—'];
     var xAcc=0;cols.forEach(function(c){c.x=xAcc;xAcc+=c.w;});
     // Header
     doc.setFillColor.apply(doc,TEAL);
@@ -673,8 +673,8 @@ function generarPDF(returnBlob){
   // ── TABLA POR ÁRBOL (estructura imagen) ──
   function tablaArbol(a,idx,tHesc,fsBase,fsHdr){
     var tH=tHesc||6.5;
-    var fsB=fsBase||7;
-    var fsH=fsHdr||6;
+    var fsB=Math.min(9,(fsBase||7)+1);
+    var fsH=Math.min(8,(fsHdr||6)+1);
     var manejos=[];
     if(a.ch_poda&&a.ch_poda.length)manejos.push('Poda');
     if((a.ch_derribo&&a.ch_derribo.length)||(a.ch_nae_der&&a.ch_nae_der.length))manejos.push('Derribo');
@@ -734,8 +734,8 @@ function generarPDF(returnBlob){
 
     // ── Sección evaluación (2 columnas) ──
     var LW=cW*0.5, RW=cW*0.5;
-    var fsEval=Math.max(5,Math.min(6.5,tH*0.9));  // fuente ajustada para eval
-    var fsManejo=Math.min(8,fsEval+1);             // fuente manejo/tipo/% 1pt más grande
+    var fsEval=Math.max(6,Math.min(7.5,tH*0.9));  // fuente ajustada para eval (+1pt)
+    var fsManejo=Math.min(9,fsEval+1);             // fuente manejo/tipo/% 1pt más grande
     var tHEval=Math.max(5,tH*1.0);                // altura sub-hdr evaluación
 
     // Sub-encabezados más compactos
@@ -856,10 +856,39 @@ function generarPDF(returnBlob){
         artMap[v]=artNum;
       }
     });
-    var fundTxt=arts.length?arts.map(function(art){
-      var pre=artMap[art]?artMap[art]+' ':art.match(/^[IVX]+\./)? '':'';
-      return pre+art;
-    }).join(' | '):'—';
+    // Fundamento: extraer solo Art., Fracción e Inciso sin descripción
+    var fundTxt='—';
+    if(arts.length){
+      var partes=[];
+      // Poda: mapear a Art. 33 Fracción X Inciso x)
+      (a.ch_poda||[]).forEach(function(v){
+        var frac='';
+        if(artMap[v])frac=artMap[v].replace('Art.','Art. 33 Fracción');
+        var inciso=v.match(/^([a-z]\))/);
+        var txt='Art. 33';
+        if(frac)txt=frac;
+        if(inciso)txt+=' Inciso '+inciso[1];
+        partes.push(txt);
+      });
+      // Derribo: Art. 35 Fracción X
+      (a.ch_derribo||[]).forEach(function(v){
+        var rom=v.match(/^([IVX]+)\./);
+        partes.push('Art. 35'+(rom?' Fracción '+rom[1]:''));
+      });
+      // NAE
+      (a.ch_nae_der||[]).forEach(function(v){
+        var num=v.match(/^(5\.\d+)/);
+        if(num)partes.push('NAE '+num[1]);
+      });
+      (a.ch_nae_tras||[]).forEach(function(v){
+        var num=v.match(/^(5\.\d+)/);
+        if(num)partes.push('NAE '+num[1]);
+      });
+      // Deduplicar
+      var seen={};
+      fundTxt=partes.filter(function(p){if(seen[p])return false;seen[p]=true;return true;}).join(' | ');
+      if(!fundTxt)fundTxt='—';
+    }
     var sFT2=doc.splitTextToSize(fundTxt,cW-6);
     var mh2=Math.max(tH*1.5,sFT2.length*fsEval*0.65+5);
     // Fundamento — amarillo
