@@ -187,6 +187,12 @@ body{font-family:'IBM Plex Sans',sans-serif;background:var(--fo);color:var(--gr)
       <div class="cb">
         <div id="map-wrap">🗺️ El mapa carga aquí</div>
         <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:9px;">
+          <!-- Campo de búsqueda de dirección -->
+          <div style="display:flex;gap:6px;">
+            <input id="addr-input" type="text" placeholder="Buscar dirección o colonia..." style="flex:1;padding:8px 12px;border-radius:8px;border:1px solid var(--gc);font-size:14px;font-family:inherit;" onkeydown="if(event.key==='Enter')buscarDireccion()">
+            <button class="btn bp" onclick="buscarDireccion()" style="padding:8px 14px;font-size:14px;white-space:nowrap;">🔍 Ir</button>
+          </div>
+          <div id="addr-label" style="font-size:12px;color:var(--gm);padding:2px 4px;display:none;"></div>
           <div style="display:flex;gap:8px;">
             <button class="btn bp" id="btn-ubicar" onclick="ubicarArbol()" style="flex:1;font-size:14px;">📍 Marcar árbol</button>
             <button class="btn bs" onclick="usarGPS()" style="flex:1;font-size:14px;">🛰️ GPS</button>
@@ -1148,6 +1154,44 @@ function iniciarMapa(){
     },300);
   };
   document.head.appendChild(js);
+}
+function buscarDireccion(){
+  var q=(g('addr-input')?g('addr-input').value:'').trim();
+  if(!q){toast('Escribe una dirección');return;}
+  var lbl=g('addr-label');
+  if(lbl){lbl.style.display='block';lbl.textContent='🔍 Buscando...';}
+  // Nominatim con prioridad a Zapopan
+  var url='https://nominatim.openstreetmap.org/search?format=json&limit=1&addressdetails=1&q='+
+    encodeURIComponent(q+', Zapopan, Jalisco, México');
+  fetch(url,{headers:{'Accept-Language':'es','User-Agent':'DictamenForestal/1.0'}})
+    .then(function(r){return r.json();})
+    .then(function(data){
+      if(!data||!data.length){
+        // Intentar sin restricción de ciudad
+        return fetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&q='+encodeURIComponent(q),
+          {headers:{'Accept-Language':'es'}})
+          .then(function(r2){return r2.json();});
+      }
+      return data;
+    })
+    .then(function(data){
+      if(!data||!data.length){
+        if(lbl)lbl.textContent='❌ Dirección no encontrada';
+        return;
+      }
+      var r=data[0];
+      var lat=parseFloat(r.lat),lng=parseFloat(r.lon);
+      if(map){
+        map.setView([lat,lng],19);
+        // Mostrar resultado
+        var nombre=r.display_name.split(',').slice(0,3).join(', ');
+        if(lbl){lbl.textContent='📍 '+nombre;lbl.style.color='var(--v)';}
+        toast('✅ Mapa centrado en: '+nombre.split(',')[0]);
+      }
+    })
+    .catch(function(){
+      if(lbl)lbl.textContent='❌ Error al buscar. Verifica tu conexión.';
+    });
 }
 function ubicarArbol(){if(!map)return;modoMarcado=!modoMarcado;g('btn-ubicar').textContent=modoMarcado?'✋ Cancelar':'📍 Marcar árbol';g('mlabel').textContent=modoMarcado?'Toca el mapa…':'Cancelado';}
 function usarGPS(){if(!navigator.geolocation){toast('GPS no disponible');return;}g('mlabel').textContent='📡 Obteniendo ubicación…';navigator.geolocation.getCurrentPosition(function(p){var la=p.coords.latitude,lo=p.coords.longitude;if(map)map.setView([la,lo],19);addMarker(la,lo);g('mlabel').textContent='✅ GPS marcado';},function(){g('mlabel').textContent='GPS no disponible';});}
