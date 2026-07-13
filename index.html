@@ -553,7 +553,7 @@ function buildArbol(id){
   h+='<label style="font-weight:600;font-size:13px;white-space:nowrap;">Tipo de poda:</label>';
   h+='<input type="text" placeholder="Ej. Fitosanitaria, Mantenimiento..." value="'+(a.tipo_poda||'')+'" oninput="sf(\'tipo_poda\',this.value)" style="padding:7px 10px;border-radius:6px;border:1px solid var(--gc);font-size:13px;font-family:inherit;flex:1;min-width:130px;">';
   h+='<label style="font-weight:600;font-size:13px;white-space:nowrap;">% de poda:</label>';
-  h+='<input type="number" min="0" max="25" placeholder="25" value="'+(a.pct_poda||'')+'" oninput="sf(\'pct_poda\',this.value)" style="width:70px;padding:7px 10px;border-radius:6px;border:1px solid var(--gc);font-size:14px;font-family:inherit;">';
+  h+='<input type="number" min="0" max="25" placeholder="25" value="'+(a.pct_poda||'')+'" oninput="var v=parseInt(this.value);if(v>25)this.value=25;if(v<0)this.value=0;sf(\'pct_poda\',this.value)" style="width:70px;padding:7px 10px;border-radius:6px;border:1px solid var(--gc);font-size:14px;font-family:inherit;">';
   h+='<span style="font-size:13px;color:#888;">%</span></div>';
   h+='</div>';
   h+='<p class="stitle">🪓 Derribo Art. 35 — Reglamento Zapopan</p><div style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px;">';
@@ -1108,7 +1108,7 @@ function generarPDF(returnBlob){
 
   // Timestamp
   doc.setFont('helvetica','normal');doc.setFontSize(7);doc.setTextColor.apply(doc,GR);
-  doc.text('Generado el: '+new Date().toLocaleString('es-MX'),W/2,doc.internal.pageSize.height-6,'center');
+  // Timestamp eliminado
 
   if(returnBlob){
     return doc.output('blob');
