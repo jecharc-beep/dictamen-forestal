@@ -487,7 +487,7 @@ function buildArbol(id){
   var a=arboles[id],h='';
   h+='<div class="card"><div class="ch dk"><span class="ch-icon">📋</span>'+a.nombre+'</div><div class="cb">';
   h+='<div class="field"><label>Especie</label><input type="text" placeholder="Ej. Jacaranda" value="'+esc(a.especie)+'" oninput="sf(\'especie\',this.value)" autocomplete="off"></div>';
-  h+='<div class="field"><label>Nombre científico</label><input type="text" placeholder="Ej. Jacaranda mimosifolia" value="'+esc(a.cientifico)+'" oninput="sf(\'cientifico\',this.value)" autocomplete="off"></div>';
+  h+='<div class="field"><label>Nombre científico</label><input type="text" placeholder="Ej. Jacaranda mimosifolia" value="'+esc(a.cientifico)+'" oninput="sf(\'cientifico\',this.value)" autocomplete="off" style="font-style:italic;"></div>';
   h+='<div class="g2"><div class="field"><label>Altura m</label><input type="number" inputmode="decimal" placeholder="0.0" value="'+esc(a.altura)+'" oninput="sf(\'altura\',this.value)"></div>';
   h+='<div class="field"><label>DAP cm</label><input type="number" inputmode="decimal" placeholder="0" value="'+esc(a.dap)+'" oninput="sf(\'dap\',this.value)"></div></div></div></div>';
   h+='<div class="card"><div class="ch dk"><span class="ch-icon">🔍</span>Características</div><div class="cb">';
@@ -685,8 +685,8 @@ function generarPDF(returnBlob){
     // ── Encabezado árbol ──
     doc.setFillColor.apply(doc,TEAL);doc.rect(M,y,cW,8,'F');
     doc.setFont('helvetica','bold');doc.setFontSize(fsB+1.5);doc.setTextColor.apply(doc,WH);
-    doc.text('Árbol #'+(idx+1)+(a.nombre?' — '+a.nombre:''),M+3,y+5.5);
-    if(sitioTxt){doc.setFont('helvetica','normal');doc.setFontSize(fsH);doc.setTextColor.apply(doc,WH);doc.text('Sitio: '+sitioTxt,W-M-2,y+5.5,'right');}
+    doc.text('Árbol #'+(idx+1)+(a.especie?' — '+a.especie:''),M+3,y+5.5);
+    if(sitioTxt){doc.setFont('helvetica','bold');doc.setFontSize(8.5);doc.setTextColor.apply(doc,WH);doc.text(sitioTxt,W-M-2,y+5.5,'right');}
     y+=8;
 
     // ── Fila encabezados datos generales ──
@@ -711,7 +711,7 @@ function generarPDF(returnBlob){
     // ── Fila valores datos generales ──
     var dv=[a.especie||'—',a.cientifico||'—',
             a.altura?a.altura+' m':'—',a.dap?a.dap+' cm':'—',
-            a.estado||'—',a.fase||'—',a.ciclo||'—',a.ram||'—'];
+            (a.estado?a.estado.charAt(0).toUpperCase()+a.estado.slice(1):'—'),(a.fase?a.fase.charAt(0).toUpperCase()+a.fase.slice(1):'—'),a.ciclo||'—',a.ram||'—'];
     // Calcular altura máxima de fila
     var maxH=tH;
     dc.forEach(function(c,i){
@@ -722,11 +722,14 @@ function generarPDF(returnBlob){
     dc.forEach(function(c){doc.rect(M+c.x,y,c.w,maxH,'F');});
     doc.setDrawColor.apply(doc,GC);doc.setLineWidth(0.2);
     dc.forEach(function(c){doc.rect(M+c.x,y,c.w,maxH,'S');});
-    doc.setFont('helvetica','normal');doc.setFontSize(fsB);doc.setTextColor.apply(doc,BLK);
+    doc.setFontSize(fsB);doc.setTextColor.apply(doc,BLK);
     dc.forEach(function(c,i){
+      // Nombre científico (índice 1) en cursiva
+      if(i===1){doc.setFont('helvetica','bolditalic');}else{doc.setFont('helvetica','normal');}
       var s=doc.splitTextToSize(String(dv[i]||''),c.w-2);
       s.forEach(function(l,li){doc.text(l,M+c.x+c.w/2,y+4+li*4,'center');});
     });
+    doc.setFont('helvetica','normal');
     y+=maxH;
 
     // ── Sección evaluación (2 columnas) ──
@@ -761,7 +764,7 @@ function generarPDF(returnBlob){
       if(ev.notas)hallazgos+=' | '+ev.notas;
       var sL=doc.splitTextToSize(ev.lbl,14);
       var sH=doc.splitTextToSize(hallazgos,LW-20);
-      var h=Math.max(tH*2,Math.max(sL.length,sH.length)*4+4);
+      var h=Math.max(tH*2.5,Math.max(sL.length,sH.length)*4.5+5);
 
       chkPg(h);
       // Fondo izq
@@ -809,15 +812,9 @@ function generarPDF(returnBlob){
         doc.setFont('helvetica','normal');doc.setFontSize(6.5);doc.setTextColor.apply(doc,BLK);
         doc.text('Pts: '+(a._pts||0),M+LW+hw2+2,y+16);
       } else {
-        // Sistema radicular — col der vacía o con pct poda
+        // Sistema radicular — col der vacía
         doc.setFillColor(255,255,255);doc.rect(M+LW,y,RW,h,'F');
         doc.setDrawColor.apply(doc,GC);doc.rect(M+LW,y,RW,h,'S');
-        if(a.pct_poda){
-          doc.setFont('helvetica','bold');doc.setFontSize(7);doc.setTextColor.apply(doc,TEAL);
-          doc.text('% Poda: ',M+LW+2,y+4);
-          doc.setFont('helvetica','normal');doc.setTextColor.apply(doc,BLK);
-          doc.text(a.pct_poda+'%',M+LW+22,y+4);
-        }
       }
       y+=h;
     });
@@ -826,16 +823,30 @@ function generarPDF(returnBlob){
     var manejoTxt=manejos.join(' / ');
     // Fundamento: artículo + inciso desde opciones seleccionadas
     var arts=[].concat(a.ch_poda||[],a.ch_derribo||[],a.ch_nae_der||[],a.ch_nae_tras||[]);
-    var fundTxt=arts.length?arts.map(function(art,ai){
-      // Extraer nombre del acord padre si está embebido, si no usar el texto directo
-      return art.replace(/^([a-z]\))/,'Inciso $1');
+    // Mapear incisos a sus artículos según acordeón de origen
+    var artMap={};
+    (a.ch_poda||[]).forEach(function(v){
+      if(/^a\)|^b\)|^c\)|^d\)/.test(v)){
+        // Determinar artículo por contenido
+        var artNum='';
+        if(v.indexOf('inminente')>=0||v.indexOf('peligro')>=0||v.indexOf('caída')>=0)artNum='Art. I';
+        else if(v.indexOf('salud')>=0||v.indexOf('Regular')>=0||v.indexOf('Suprimir')>=0||v.indexOf('Mejorar')>=0)artNum='Art. II';
+        else if(v.indexOf('ama')>=0||v.indexOf('muertas')>=0||v.indexOf('parásita')>=0||v.indexOf('cancros')>=0)artNum='Art. IV';
+        else if(v.indexOf('podados')>=0||v.indexOf('desbalance')>=0||v.indexOf('Follaje')>=0)artNum='Art. V';
+        else if(v.indexOf('Interferencia')>=0||v.indexOf('cableado')>=0||v.indexOf('banquetas')>=0||v.indexOf('bardas')>=0)artNum='Art. VI';
+        artMap[v]=artNum;
+      }
+    });
+    var fundTxt=arts.length?arts.map(function(art){
+      var pre=artMap[art]?artMap[art]+' ':art.match(/^[IVX]+\./)? '':'';
+      return pre+art;
     }).join(' | '):'—';
     var sMT=doc.splitTextToSize(manejoTxt,LW-20);
     var sFT=doc.splitTextToSize(fundTxt,RW-6);
     var mh=Math.max(tH*2,Math.max(sMT.length,sFT.length)*4+4);
     chkPg(mh);
     // Fila 1: Manejo forestal (izq) | Tipo de poda + % (der)
-    var tipoPodaTxt=(a.tipo_poda||'')+(a.pct_poda?' — '+a.pct_poda+'%':'');
+    var tipoPodaTxt=a.tipo_poda||'—';
     var sTP=doc.splitTextToSize(tipoPodaTxt||'—',RW-6);
     var mh1=Math.max(tH*1.5,Math.max(sMT.length,sTP.length)*4+4);
     // Izq: Manejo
@@ -849,7 +860,7 @@ function generarPDF(returnBlob){
     doc.setFillColor(255,255,255);doc.rect(M+LW,y,RW,mh1,'F');
     doc.setDrawColor.apply(doc,GC);doc.rect(M+LW,y,RW,mh1,'S');
     doc.setFont('helvetica','bold');doc.setFontSize(fsH);doc.setTextColor.apply(doc,TEAL);
-    doc.text('Tipo / % poda:',M+LW+2,y+4);
+    doc.text('Tipo de poda:',M+LW+2,y+4);
     doc.setFont('helvetica','normal');doc.setFontSize(fsH);doc.setTextColor.apply(doc,BLK);
     sTP.forEach(function(l,li){doc.text(l,M+LW+2,y+4+tH*0.6+li*4);});
     y+=mh1;
