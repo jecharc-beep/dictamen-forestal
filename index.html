@@ -734,100 +734,119 @@ function generarPDF(returnBlob){
 
     // ── Sección evaluación (2 columnas) ──
     var LW=cW*0.5, RW=cW*0.5;
+    var fsEval=Math.max(5,Math.min(6.5,tH*0.9));  // fuente ajustada para eval
+    var tHEval=Math.max(5,tH*1.0);                // altura sub-hdr evaluación
 
-    // Sub-encabezados
+    // Sub-encabezados más compactos
     doc.setFillColor.apply(doc,TEAL_L);
-    doc.rect(M,y,LW,tH,'F');doc.rect(M+LW,y,RW,tH,'F');
+    doc.rect(M,y,LW,tHEval,'F');doc.rect(M+LW,y,RW,tHEval,'F');
     doc.setDrawColor.apply(doc,GC);doc.setLineWidth(0.2);
-    doc.rect(M,y,LW,tH,'S');doc.rect(M+LW,y,RW,tH,'S');
-    doc.setFont('helvetica','bold');doc.setFontSize(7);doc.setTextColor.apply(doc,TEAL);
-    doc.text('Evaluación estructural',M+LW/2,y+4.5,'center');
-    doc.text('Requerimientos operativos',M+LW+RW/2,y+4.5,'center');
-    y+=tH;
+    doc.rect(M,y,LW,tHEval,'S');doc.rect(M+LW,y,RW,tHEval,'S');
+    doc.setFont('helvetica','bold');doc.setFontSize(fsEval);doc.setTextColor.apply(doc,TEAL);
+    doc.text('Evaluación estructural',M+LW/2,y+tHEval*0.72,'center');
+    doc.text('Requerimientos operativos',M+LW+RW/2,y+tHEval*0.72,'center');
+    y+=tHEval;
 
-    // Col izq: Copa / Fuste / Sistema radicular
-    // Col der: Req operativos (arriba) / Afectaciones+Riesgo (medio) / Manejo+Fundamento (abajo)
     var evalItems=[
-      {lbl:'Copa',      data:a.ch_copa,  notas:a.notas_copa},
-      {lbl:'Fuste',     data:a.ch_fuste, notas:a.notas_fuste},
-      {lbl:'Sistema radicular',data:a.ch_raiz,notas:a.notas_raiz}
+      {lbl:'Copa',             data:a.ch_copa,  notas:a.notas_copa},
+      {lbl:'Fuste',            data:a.ch_fuste, notas:a.notas_fuste},
+      {lbl:'Sistema
+radicular',data:a.ch_raiz, notas:a.notas_raiz}
     ];
 
-    // Calcular altura de req operativos
     var reqTxt=a.ch_req&&a.ch_req.length?a.ch_req.join(', '):'—';
-    var reqLines=doc.splitTextToSize(reqTxt,RW-24);
-    var reqH=Math.max(tH*2,reqLines.length*4+4);
 
-    // Filas evaluación izq + req der
     evalItems.forEach(function(ev,ei){
       var hallazgos=ev.data&&ev.data.length?ev.data.join('; '):'Sin hallazgos';
       if(ev.notas)hallazgos+=' | '+ev.notas;
-      var sL=doc.splitTextToSize(ev.lbl,14);
-      var sH=doc.splitTextToSize(hallazgos,LW-20);
-      var h=Math.max(tH*2.5,Math.max(sL.length,sH.length)*4.5+5);
+      var sL=doc.splitTextToSize(ev.lbl.replace('\n',' '),13);
+      var sH=doc.splitTextToSize(hallazgos,LW-18);
+      var h=Math.max(tH*2,Math.max(sL.length,sH.length)*fsEval*0.65+4);
 
       chkPg(h);
-      // Fondo izq
-      if(ei%2===0){doc.setFillColor(255,255,255);}else{doc.setFillColor.apply(doc,GOLD_L);}
+
+      // ── COLUMNA IZQUIERDA: siempre blanco ──
+      doc.setFillColor(255,255,255);
       doc.rect(M,y,LW,h,'F');
       doc.setDrawColor.apply(doc,GC);doc.setLineWidth(0.2);doc.rect(M,y,LW,h,'S');
-      // Label
-      doc.setFont('helvetica','bold');doc.setFontSize(7);doc.setTextColor.apply(doc,TEAL);
-      sL.forEach(function(l,li){doc.text(l,M+2,y+4+li*4);});
-      // Hallazgos
-      doc.setFont('helvetica','normal');doc.setFontSize(7);doc.setTextColor.apply(doc,BLK);
-      sH.forEach(function(l,li){doc.text(l,M+18,y+4+li*4);});
+      doc.setFont('helvetica','bold');doc.setFontSize(fsEval);doc.setTextColor.apply(doc,TEAL);
+      sL.forEach(function(l,li){doc.text(l,M+2,y+4+li*fsEval*0.65);});
+      doc.setFont('helvetica','normal');doc.setFontSize(fsEval);doc.setTextColor.apply(doc,BLK);
+      sH.forEach(function(l,li){doc.text(l,M+17,y+4+li*fsEval*0.65);});
 
-      // Col der (solo primera fila: req operativos, resto: afectaciones y riesgo)
+      // ── COLUMNA DERECHA ──
       if(ei===0){
-        // Req operativos — ocupa altura de Copa
+        // Copa → Requerimientos operativos (blanco)
         doc.setFillColor(255,255,255);doc.rect(M+LW,y,RW,h,'F');
         doc.setDrawColor.apply(doc,GC);doc.rect(M+LW,y,RW,h,'S');
-        doc.setFont('helvetica','bold');doc.setFontSize(7);doc.setTextColor.apply(doc,TEAL);
+        doc.setFont('helvetica','bold');doc.setFontSize(fsEval);doc.setTextColor.apply(doc,TEAL);
         doc.text('Req.:',M+LW+2,y+4);
-        doc.setFont('helvetica','normal');doc.setFontSize(7);doc.setTextColor.apply(doc,BLK);
-        var rS=doc.splitTextToSize(reqTxt,RW-14);
-        rS.forEach(function(l,li){doc.text(l,M+LW+14,y+4+li*4);});
+        doc.setFont('helvetica','normal');doc.setFontSize(fsEval);doc.setTextColor.apply(doc,BLK);
+        var rS=doc.splitTextToSize(reqTxt,RW-13);
+        rS.forEach(function(l,li){doc.text(l,M+LW+13,y+4+li*fsEval*0.65);});
+
       } else if(ei===1){
-        // Afectaciones + Evaluación de riesgo (2 sub-cols dentro de col der)
+        // Fuste → Afect (blanco) + Riesgo (blanco)
         var dianaTxt=a.ch_diana&&a.ch_diana.length?a.ch_diana.join(', '):'—';
         var rLabel=a.riesgo==='alto'?'ALTO':a.riesgo==='medio'?'MEDIO':'NO APLICA';
         var rCol=a.riesgo==='alto'?ROJO:a.riesgo==='medio'?AMBAR:GVRD;
-        var hw2=RW/2;
-        // Afectaciones
-        doc.setFillColor.apply(doc,GOLD_L);doc.rect(M+LW,y,hw2,h,'F');
-        doc.setDrawColor.apply(doc,GC);doc.rect(M+LW,y,hw2,h,'S');
-        doc.setFont('helvetica','bold');doc.setFontSize(6.5);doc.setTextColor.apply(doc,TEAL);
+        var rW=RW*0.38, aW=RW-rW;
+        // Afect — blanco
+        doc.setFillColor(255,255,255);doc.rect(M+LW,y,aW,h,'F');
+        doc.setDrawColor.apply(doc,GC);doc.rect(M+LW,y,aW,h,'S');
+        doc.setFont('helvetica','bold');doc.setFontSize(fsEval);doc.setTextColor.apply(doc,TEAL);
         doc.text('Afect.:',M+LW+2,y+4);
-        doc.setFont('helvetica','normal');doc.setFontSize(6.5);doc.setTextColor.apply(doc,BLK);
-        var dS=doc.splitTextToSize(dianaTxt,hw2-16);
-        dS.forEach(function(l,li){doc.text(l,M+LW+16,y+4+li*4);});
-        // Evaluación riesgo
-        doc.setFillColor(255,255,255);doc.rect(M+LW+hw2,y,hw2,h,'F');
-        doc.setDrawColor.apply(doc,GC);doc.rect(M+LW+hw2,y,hw2,h,'S');
-        doc.setFont('helvetica','bold');doc.setFontSize(6.5);doc.setTextColor.apply(doc,TEAL);
-        doc.text('Riesgo:',M+LW+hw2+2,y+4);
-        doc.setFont('helvetica','bold');doc.setFontSize(7);doc.setTextColor.apply(doc,rCol);
-        doc.text(rLabel,M+LW+hw2+2,y+10);
-        doc.setFont('helvetica','normal');doc.setFontSize(6.5);doc.setTextColor.apply(doc,BLK);
-        doc.text('Pts: '+(a._pts||0),M+LW+hw2+2,y+16);
+        doc.setFont('helvetica','normal');doc.setFontSize(fsEval);doc.setTextColor.apply(doc,BLK);
+        var dS=doc.splitTextToSize(dianaTxt,aW-14);
+        dS.forEach(function(l,li){doc.text(l,M+LW+14,y+4+li*fsEval*0.65);});
+        // Riesgo — blanco, texto ajustado
+        doc.setFillColor(255,255,255);doc.rect(M+LW+aW,y,rW,h,'F');
+        doc.setDrawColor.apply(doc,GC);doc.rect(M+LW+aW,y,rW,h,'S');
+        doc.setFont('helvetica','bold');doc.setFontSize(fsEval-0.5);doc.setTextColor.apply(doc,TEAL);
+        doc.text('Riesgo:',M+LW+aW+1.5,y+4);
+        doc.setFont('helvetica','bold');doc.setFontSize(fsEval);doc.setTextColor.apply(doc,rCol);
+        doc.text(rLabel,M+LW+aW+rW/2,y+h*0.6,'center');
+
       } else {
-        // Sistema radicular — col der vacía
-        doc.setFillColor(255,255,255);doc.rect(M+LW,y,RW,h,'F');
-        doc.setDrawColor.apply(doc,GC);doc.rect(M+LW,y,RW,h,'S');
+        // Sistema radicular → col der: Manejo forestal (arriba) | Tipo poda + % (abajo)
+        var manejoTxt2=manejos.join(' / ');
+        var sMT2=doc.splitTextToSize(manejoTxt2,RW-4);
+        var tipoPodaTxt=a.tipo_poda||'—';
+        var pctTxt=a.pct_poda?a.pct_poda+'%':'—';
+        // Subdividir col der en 2 filas: Manejo arriba / Tipo+% abajo
+        var hMan=Math.max(h*0.45,tH*1.2);
+        var hTip=h-hMan;
+        // Manejo — amarillo
+        doc.setFillColor.apply(doc,GOLD_L);doc.rect(M+LW,y,RW,hMan,'F');
+        doc.setDrawColor.apply(doc,GC);doc.rect(M+LW,y,RW,hMan,'S');
+        doc.setFont('helvetica','bold');doc.setFontSize(fsEval);doc.setTextColor.apply(doc,TEAL);
+        doc.text('Manejo:',M+LW+2,y+4);
+        doc.setFont('helvetica','bold');doc.setFontSize(fsEval);doc.setTextColor.apply(doc,BLK);
+        sMT2.forEach(function(l,li){doc.text(l,M+LW+18,y+4+li*fsEval*0.65);});
+        // Tipo poda (izq) + % (der) — amarillo
+        var tW=RW*0.65, pW=RW-tW;
+        doc.setFillColor.apply(doc,GOLD_L);doc.rect(M+LW,y+hMan,tW,hTip,'F');
+        doc.setFillColor.apply(doc,GOLD_L);doc.rect(M+LW+tW,y+hMan,pW,hTip,'F');
+        doc.setDrawColor.apply(doc,GC);
+        doc.rect(M+LW,y+hMan,tW,hTip,'S');doc.rect(M+LW+tW,y+hMan,pW,hTip,'S');
+        doc.setFont('helvetica','bold');doc.setFontSize(fsEval);doc.setTextColor.apply(doc,TEAL);
+        doc.text('Tipo poda:',M+LW+2,y+hMan+4);
+        doc.setFont('helvetica','normal');doc.setFontSize(fsEval);doc.setTextColor.apply(doc,BLK);
+        var sTip=doc.splitTextToSize(tipoPodaTxt,tW-20);
+        sTip.forEach(function(l,li){doc.text(l,M+LW+18,y+hMan+4+li*fsEval*0.65);});
+        doc.setFont('helvetica','bold');doc.setFontSize(fsEval);doc.setTextColor.apply(doc,TEAL);
+        doc.text('%:',M+LW+tW+1.5,y+hMan+4);
+        doc.setFont('helvetica','normal');doc.setFontSize(fsEval);doc.setTextColor.apply(doc,BLK);
+        doc.text(pctTxt,M+LW+tW+8,y+hMan+4);
       }
       y+=h;
     });
 
-    // ── Fila Manejo forestal + Fundamento normativo ──
-    var manejoTxt=manejos.join(' / ');
-    // Fundamento: artículo + inciso desde opciones seleccionadas
+    // ── Fila Fundamento normativo (ancho completo) — amarillo ──
     var arts=[].concat(a.ch_poda||[],a.ch_derribo||[],a.ch_nae_der||[],a.ch_nae_tras||[]);
-    // Mapear incisos a sus artículos según acordeón de origen
     var artMap={};
     (a.ch_poda||[]).forEach(function(v){
       if(/^a\)|^b\)|^c\)|^d\)/.test(v)){
-        // Determinar artículo por contenido
         var artNum='';
         if(v.indexOf('inminente')>=0||v.indexOf('peligro')>=0||v.indexOf('caída')>=0)artNum='Art. I';
         else if(v.indexOf('salud')>=0||v.indexOf('Regular')>=0||v.indexOf('Suprimir')>=0||v.indexOf('Mejorar')>=0)artNum='Art. II';
@@ -841,39 +860,16 @@ function generarPDF(returnBlob){
       var pre=artMap[art]?artMap[art]+' ':art.match(/^[IVX]+\./)? '':'';
       return pre+art;
     }).join(' | '):'—';
-    var sMT=doc.splitTextToSize(manejoTxt,LW-20);
-    var sFT=doc.splitTextToSize(fundTxt,RW-6);
-    var mh=Math.max(tH*2,Math.max(sMT.length,sFT.length)*4+4);
-    chkPg(mh);
-    // Fila 1: Manejo forestal (izq) | Tipo de poda + % (der)
-    var tipoPodaTxt=a.tipo_poda||'—';
-    var sTP=doc.splitTextToSize(tipoPodaTxt||'—',RW-6);
-    var mh1=Math.max(tH*1.5,Math.max(sMT.length,sTP.length)*4+4);
-    // Izq: Manejo
-    doc.setFillColor.apply(doc,TEAL_L);doc.rect(M,y,LW,mh1,'F');
-    doc.setDrawColor.apply(doc,GC);doc.setLineWidth(0.2);doc.rect(M,y,LW,mh1,'S');
-    doc.setFont('helvetica','bold');doc.setFontSize(fsH);doc.setTextColor.apply(doc,TEAL);
-    doc.text('Manejo forestal:',M+2,y+4);
-    doc.setFont('helvetica','bold');doc.setFontSize(fsB);doc.setTextColor.apply(doc,TEAL);
-    sMT.forEach(function(l,li){doc.text(l,M+2,y+4+tH*0.6+li*4);});
-    // Der: Tipo + % poda
-    doc.setFillColor(255,255,255);doc.rect(M+LW,y,RW,mh1,'F');
-    doc.setDrawColor.apply(doc,GC);doc.rect(M+LW,y,RW,mh1,'S');
-    doc.setFont('helvetica','bold');doc.setFontSize(fsH);doc.setTextColor.apply(doc,TEAL);
-    doc.text('Tipo de poda:',M+LW+2,y+4);
-    doc.setFont('helvetica','normal');doc.setFontSize(fsH);doc.setTextColor.apply(doc,BLK);
-    sTP.forEach(function(l,li){doc.text(l,M+LW+2,y+4+tH*0.6+li*4);});
-    y+=mh1;
-    // Fila 2: Fundamento normativo (ancho completo)
     var sFT2=doc.splitTextToSize(fundTxt,cW-6);
-    var mh2=Math.max(tH*1.5,sFT2.length*4+4);
-    doc.setFillColor.apply(doc,TEAL_L);doc.rect(M,y,cW,mh2,'F');
-    doc.setDrawColor.apply(doc,GC);doc.rect(M,y,cW,mh2,'S');
-    doc.setFont('helvetica','bold');doc.setFontSize(fsH);doc.setTextColor.apply(doc,TEAL);
+    var mh2=Math.max(tH*1.5,sFT2.length*fsEval*0.65+5);
+    // Fundamento — amarillo
+    doc.setFillColor.apply(doc,GOLD_L);doc.rect(M,y,cW,mh2,'F');
+    doc.setDrawColor.apply(doc,GC);doc.setLineWidth(0.2);doc.rect(M,y,cW,mh2,'S');
+    doc.setFont('helvetica','bold');doc.setFontSize(fsEval);doc.setTextColor.apply(doc,TEAL);
     doc.text('Fundamento normativo:',M+2,y+4);
-    doc.setFont('helvetica','normal');doc.setFontSize(fsH);doc.setTextColor.apply(doc,BLK);
-    sFT2.forEach(function(l,li){doc.text(l,M+2,y+4+tH*0.6+li*4);});
-    y+=mh2;gap(3);
+    doc.setFont('helvetica','normal');doc.setFontSize(fsEval);doc.setTextColor.apply(doc,BLK);
+    sFT2.forEach(function(l,li){doc.text(l,M+44,y+4+li*fsEval*0.65);});
+    y+=mh2;gap(2);
   }
 
   // ── CROQUIS ──
@@ -1032,25 +1028,29 @@ function generarPDF(returnBlob){
   tablaDatos();
   gap(2);
 
-  // ── Todas las tablas (máx 5 árboles) en UNA SOLA PÁGINA ──
-  // Espacio disponible tras cabecera y tablaDatos
+  // ── Máx 3 árboles por página ──
+  var MAX_POR_PAG=3;
   var alturaDisponible=PH-y-16;
   var alturaObs=obs?(Math.ceil(obs.length/80)*4.5+18):0;
+  var nPag=Math.min(arboles.length,MAX_POR_PAG);
   var espacioArboles=alturaDisponible-alturaObs;
-
-  // Cada tabla tiene: hdr árbol(7) + hdr cols(tH) + fila vals(tH*1.3) +
-  // sub-hdr eval(tH) + Copa(tH*1.5) + Fuste(tH*1.5) + Raíz(tH*1.2) + Manejo(tH*1.5) + gap(3)
-  // Total ≈ tH*9.5 + 10 por árbol
-  // Despejando tH: tH = (espacioArboles - arboles.length*10) / (arboles.length*9.5)
-  var n=Math.min(arboles.length,5);
-  var tHesc=(espacioArboles-n*10)/(n*9.5);
-  tHesc=Math.max(4,Math.min(7,tHesc)); // entre 4mm y 7mm por fila
-
-  // Tamaños de fuente proporcionales al tH
+  var tHesc=(espacioArboles-nPag*10)/(nPag*9.5);
+  tHesc=Math.max(4,Math.min(7,tHesc));
   var fsBase=Math.max(5,Math.min(7.5,tHesc*1.05));
-  var fsHdr =Math.max(4.5,Math.min(6.5,tHesc*0.9));
+  var fsHdr=Math.max(4.5,Math.min(6.5,tHesc*0.9));
 
   arboles.forEach(function(a,idx){
+    // Nueva página cada 3 árboles
+    if(idx>0&&idx%MAX_POR_PAG===0){
+      doc.addPage();cabecera();
+      // Recalcular tH para los árboles restantes
+      var restantes=Math.min(arboles.length-idx,MAX_POR_PAG);
+      var espacio2=PH-y-16;
+      tHesc=(espacio2-restantes*10)/(restantes*9.5);
+      tHesc=Math.max(4,Math.min(7,tHesc));
+      fsBase=Math.max(5,Math.min(7.5,tHesc*1.05));
+      fsHdr=Math.max(4.5,Math.min(6.5,tHesc*0.9));
+    }
     tablaArbol(a,idx,tHesc,fsBase,fsHdr);
   });
 
