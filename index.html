@@ -1191,25 +1191,92 @@ function buscarDireccion(){
 function ubicarArbol(){if(!map)return;modoMarcado=!modoMarcado;g('btn-ubicar').textContent=modoMarcado?'✋ Cancelar':'📍 Marcar árbol';g('mlabel').textContent=modoMarcado?'Toca el mapa…':'Cancelado';}
 function usarGPS(){
   if(!navigator.geolocation){toast('GPS no disponible');return;}
-  g('mlabel').textContent='📡 Obteniendo ubicación…';
-  navigator.geolocation.getCurrentPosition(
+  var lbl=g('mlabel');
+  var btnGPS=document.querySelector('.btn.bs[onclick="usarGPS()"]');
+  if(btnGPS)btnGPS.disabled=true;
+
+  // Cancelar si ya hay una sesión activa
+  if(window._gpsWatch){
+    navigator.geolocation.clearWatch(window._gpsWatch);
+    window._gpsWatch=null;
+    if(btnGPS)btnGPS.disabled=false;
+    lbl.textContent='GPS cancelado';
+    return;
+  }
+
+  var UMBRAL_M=5;       // precisión mínima en metros para aceptar
+  var TIMEOUT_S=30;     // segundos máximos esperando
+  var mejorAcc=Infinity;
+  var mejorLat=null, mejorLng=null;
+  var t0=Date.now();
+
+  lbl.textContent='📡 Buscando señal GPS…';
+  if(btnGPS)btnGPS.textContent='✋ Cancelar GPS';
+
+  window._gpsWatch=navigator.geolocation.watchPosition(
     function(p){
-      var la=p.coords.latitude,lo=p.coords.longitude;
-      var acc=p.coords.accuracy; // precisión en metros
+      var la=p.coords.latitude, lo=p.coords.longitude, acc=p.coords.accuracy;
+      var elapsed=Math.round((Date.now()-t0)/1000);
+
+      // Actualizar mejor lectura
+      if(acc<mejorAcc){mejorAcc=acc;mejorLat=la;mejorLng=lo;}
+
+      // Mostrar círculo en mapa
       if(map){
         map.setView([la,lo],19);
-        // Mostrar círculo de precisión
         if(window._gpsCircle)window._gpsCircle.remove();
-        window._gpsCircle=L.circle([la,lo],{radius:acc,color:'#2D6A2D',fillOpacity:0.1,weight:1}).addTo(map);
+        window._gpsCircle=L.circle([la,lo],{
+          radius:acc,color:'#F47920',fillOpacity:0.12,weight:1.5
+        }).addTo(map);
       }
-      addMarker(la,lo);
-      g('mlabel').textContent='✅ GPS: precisión ±'+Math.round(acc)+'m';
+
+      // Actualizar label con precisión actual
+      var barras=acc<=5?'████':acc<=10?'███░':acc<=20?'██░░':'█░░░';
+      lbl.textContent='📡 Precisión: ±'+Math.round(acc)+'m '+barras+' ('+elapsed+'s)';
+      lbl.style.color=acc<=UMBRAL_M?'var(--v)':'var(--gm)';
+
+      // Si alcanzó el umbral: marcar automáticamente
+      if(acc<=UMBRAL_M){
+        _confirmarGPS(la,lo,acc);
+      }
     },
     function(err){
-      g('mlabel').textContent='❌ GPS no disponible: '+err.message;
+      _cancelarGPS();
+      lbl.textContent='❌ GPS: '+err.message;
     },
-    {enableHighAccuracy:true, timeout:15000, maximumAge:0}
+    {enableHighAccuracy:true, timeout:20000, maximumAge:0}
   );
+
+  // Timeout: si no alcanza el umbral en TIMEOUT_S, usar la mejor lectura disponible
+  window._gpsTimeout=setTimeout(function(){
+    if(window._gpsWatch){
+      if(mejorLat!==null){
+        lbl.textContent='⚠️ Usando mejor señal disponible: ±'+Math.round(mejorAcc)+'m';
+        _confirmarGPS(mejorLat,mejorLng,mejorAcc);
+      } else {
+        _cancelarGPS();
+        lbl.textContent='❌ No se pudo obtener señal GPS';
+      }
+    }
+  }, TIMEOUT_S*1000);
+
+  function _confirmarGPS(la,lo,acc){
+    _cancelarGPS();
+    addMarker(la,lo);
+    if(window._gpsCircle){
+      // Cambiar círculo a verde al confirmar
+      window._gpsCircle.setStyle({color:'#2D6A2D',fillColor:'#2D6A2D'});
+    }
+    lbl.textContent='✅ Marcado: ±'+Math.round(acc)+'m de precisión';
+    lbl.style.color='var(--v)';
+    if(btnGPS)btnGPS.textContent='🛰️ GPS';
+  }
+
+  function _cancelarGPS(){
+    if(window._gpsWatch){navigator.geolocation.clearWatch(window._gpsWatch);window._gpsWatch=null;}
+    if(window._gpsTimeout){clearTimeout(window._gpsTimeout);window._gpsTimeout=null;}
+    if(btnGPS){btnGPS.disabled=false;btnGPS.textContent='🛰️ GPS';}
+  }
 }
 function addMarker(lat,lng){if(!map)return;var n=marcadores.length+1;var ic=L.divIcon({className:'',html:'<div style="background:#2D6A2D;color:white;border-radius:50%;width:20px;height:20px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;border:2px solid white;box-shadow:0 1px 4px rgba(0,0,0,.4)">'+n+'</div>',iconSize:[20,20],iconAnchor:[10,10]});var m=L.marker([lat,lng],{icon:ic}).addTo(map).bindPopup('<b>Árbol #'+n+'</b><br>'+lat.toFixed(5)+', '+lng.toFixed(5));marcadores.push({m:m,lat:lat,lng:lng});updCoords();guardarAuto();}
 function limpiarMarcadores(){marcadores.forEach(function(o){if(map)map.removeLayer(o.m);});marcadores=[];updCoords();toast('🗑 Marcadores eliminados');}
