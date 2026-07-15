@@ -1,0 +1,839 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#1B4332">
+<title>Reinspección Forestal — Zapopan</title>
+<link rel="manifest" href="manifest-reinspeccion.json">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+:root{
+  --v:#1B4332; --v2:#2D6A4F; --vl:#B7E4C7; --vb:#D8F3DC;
+  --org:#E76F00; --or2:#F4A261;
+  --bg:#F4F7F5; --card:#fff; --bdr:#D0DDD5;
+  --txt:#1C2B22; --gm:#5A7A62; --muted:#8FA897;
+  --radius:10px; --radius-sm:6px;
+  --sh:0 2px 8px rgba(27,67,50,.10);
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+body{font-family:'IBM Plex Sans',sans-serif;background:var(--bg);color:var(--txt);min-height:100vh;padding-bottom:80px;}
+
+/* ── HEADER ── */
+.topbar{background:var(--v);padding:14px 16px 10px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;box-shadow:0 2px 8px rgba(0,0,0,.2);}
+.topbar-left{display:flex;align-items:center;gap:10px;}
+.logo-ico{width:38px;height:38px;border-radius:50%;background:rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;font-size:20px;}
+.topbar h1{font-size:15px;font-weight:600;color:#fff;line-height:1.2;}
+.topbar p{font-size:11px;color:rgba(255,255,255,.65);}
+.folio-badge{background:var(--org);color:#fff;font-size:11px;font-weight:700;padding:4px 10px;border-radius:8px;letter-spacing:.04em;cursor:pointer;}
+
+/* ── CARDS ── */
+.card{background:var(--card);border-radius:var(--radius);border:1px solid var(--bdr);margin:12px 14px;box-shadow:var(--sh);}
+.card-hdr{background:var(--v);padding:10px 14px;border-radius:var(--radius) var(--radius) 0 0;display:flex;align-items:center;gap:8px;}
+.card-hdr span{font-size:13px;font-weight:600;color:#fff;}
+.card-body{padding:14px;}
+
+/* ── FOLIO SEARCH ── */
+.folio-search{background:var(--card);border-radius:var(--radius);border:1px solid var(--bdr);margin:14px;padding:16px;box-shadow:var(--sh);}
+.folio-search h2{font-size:14px;font-weight:600;color:var(--v);margin-bottom:10px;}
+.search-row{display:flex;gap:8px;}
+.search-row input{flex:1;padding:10px 14px;border-radius:var(--radius-sm);border:1.5px solid var(--bdr);font-size:14px;font-family:inherit;background:var(--bg);}
+.search-row input:focus{outline:none;border-color:var(--v);}
+.btn{padding:10px 16px;border-radius:var(--radius-sm);font-size:13px;font-weight:600;cursor:pointer;border:none;font-family:inherit;transition:all .15s;}
+.btn-v{background:var(--v);color:#fff;}
+.btn-v:active{background:var(--v2);}
+.btn-org{background:var(--org);color:#fff;}
+.btn-org:active{background:#c45e00;}
+.btn-ghost{background:var(--bg);color:var(--gm);border:1.5px solid var(--bdr);}
+.btn-full{width:100%;}
+.resultado-folio{margin-top:12px;padding:12px;background:var(--vb);border-radius:var(--radius-sm);border:1px solid var(--vl);display:none;}
+.resultado-folio.err{background:#FFF0F0;border-color:#FFA0A0;}
+
+/* ── FORMULARIO ── */
+.field{margin-bottom:12px;}
+.field label{display:block;font-size:11px;font-weight:600;color:var(--gm);text-transform:uppercase;letter-spacing:.05em;margin-bottom:5px;}
+.field input,.field textarea,.field select{width:100%;padding:9px 12px;border-radius:var(--radius-sm);border:1.5px solid var(--bdr);font-size:14px;font-family:inherit;background:var(--bg);color:var(--txt);}
+.field input:focus,.field textarea:focus,.field select:focus{outline:none;border-color:var(--v);background:#fff;}
+.field textarea{resize:vertical;min-height:60px;}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.stitle{font-size:11px;font-weight:700;color:var(--v);text-transform:uppercase;letter-spacing:.06em;margin:12px 0 8px;padding-bottom:4px;border-bottom:1.5px solid var(--vl);}
+
+/* ── TABLA ÁRBOLES ── */
+.arbol-row{background:var(--bg);border-radius:var(--radius-sm);border:1px solid var(--bdr);padding:12px;margin-bottom:8px;}
+.arbol-row-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
+.arbol-num{background:var(--v);color:#fff;border-radius:50%;width:26px;height:26px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0;}
+.arbol-nombre{font-size:13px;font-weight:600;color:var(--txt);}
+.arbol-especie{font-size:11px;color:var(--gm);font-style:italic;}
+
+/* ── CHECKBOXES ── */
+.chk-grid{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-bottom:8px;}
+.chk-item{border:1px solid var(--bdr);border-radius:var(--radius-sm);padding:7px 8px;font-size:11.5px;color:var(--gm);background:var(--card);display:flex;align-items:center;gap:5px;cursor:pointer;}
+.chk-item.ck{background:var(--vb);border-color:var(--v2);color:var(--v);}
+.chk-item .cb{width:14px;height:14px;border-radius:3px;border:1.5px solid var(--bdr);background:#fff;display:flex;align-items:center;justify-content:center;font-size:9px;flex-shrink:0;}
+.chk-item.ck .cb{background:var(--v);border-color:var(--v);color:#fff;}
+
+/* ── RESULTADO ── */
+.result-box{border-radius:var(--radius-sm);padding:12px 14px;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;}
+.result-box.bajo{background:#D8F3DC;border:1px solid #74C69D;}
+.result-box.medio{background:#FFF3CD;border:1px solid #FFC107;}
+.result-box.alto{background:#FFE0E0;border:1px solid #FF6B6B;}
+.result-label{font-size:11px;font-weight:700;color:var(--gm);text-transform:uppercase;letter-spacing:.05em;}
+.result-val{font-size:18px;font-weight:700;}
+.result-val.bajo{color:#1B4332;}
+.result-val.medio{color:#856404;}
+.result-val.alto{color:#842029;}
+
+/* ── ACORDEÓN ── */
+.acord{border:1px solid var(--bdr);border-radius:var(--radius-sm);margin-bottom:5px;overflow:hidden;}
+.acord-hdr{background:var(--bg);padding:9px 12px;font-size:12px;font-weight:600;color:var(--gm);display:flex;justify-content:space-between;align-items:center;cursor:pointer;}
+.acord-hdr:active{background:var(--vb);}
+.acord-body{display:none;padding:10px;background:#fff;}
+.acord-body.open{display:block;}
+
+/* ── NAVBAR ── */
+.navbar{position:fixed;bottom:0;left:0;right:0;background:var(--v);display:flex;border-top:1px solid rgba(255,255,255,.1);}
+.nav-btn{flex:1;padding:10px 0 8px;text-align:center;color:rgba(255,255,255,.55);font-size:10px;font-weight:600;display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;border:none;background:none;font-family:inherit;}
+.nav-btn.active{color:#fff;}
+.nav-btn .ico{font-size:20px;}
+.nav-bar{height:2px;width:28px;border-radius:1px;background:transparent;}
+.nav-btn.active .nav-bar{background:var(--or2);}
+
+/* ── SECCIONES ── */
+.sec{display:none;}.sec.active{display:block;}
+
+/* ── TOAST ── */
+.toast-el{position:fixed;bottom:90px;left:50%;transform:translateX(-50%) translateY(20px);background:#1C2B22;color:#fff;padding:10px 20px;border-radius:20px;font-size:13px;opacity:0;transition:all .3s;z-index:999;white-space:nowrap;}
+.toast-el.show{opacity:1;transform:translateX(-50%) translateY(0);}
+
+/* ── PDF PREVIEW ── */
+.pdf-row{display:flex;gap:8px;margin-top:12px;}
+</style>
+</head>
+<body>
+
+<!-- TOPBAR -->
+<div class="topbar">
+  <div class="topbar-left">
+    <div class="logo-ico">🔍</div>
+    <div>
+      <h1>REINSPECCIÓN FORESTAL</h1>
+      <p>Parques y Jardines Zapopan</p>
+    </div>
+  </div>
+  <div id="folio-badge" class="folio-badge" onclick="goTab(0)">FOLIO</div>
+</div>
+
+<!-- SECCIÓN 0: DATOS -->
+<div class="sec active" id="sec0">
+
+  <!-- Buscar folio del dictamen original -->
+  <div class="folio-search">
+    <h2>📋 Vincular dictamen original</h2>
+    <div class="search-row">
+      <input id="buscar-folio" type="text" placeholder="Ej. ZAP-001" oninput="this.value=this.value.toUpperCase()">
+      <button class="btn btn-v" onclick="buscarFolio()">🔍 Buscar</button>
+    </div>
+    <div id="resultado-folio" class="resultado-folio"></div>
+  </div>
+
+  <div class="card">
+    <div class="card-hdr"><span>📝 Datos de reinspección</span></div>
+    <div class="card-body">
+      <div class="g2">
+        <div class="field">
+          <label>Folio dictamen</label>
+          <input id="folio-orig" type="text" placeholder="ZAP-001" oninput="guardarAuto()">
+        </div>
+        <div class="field">
+          <label>Folio reinspección</label>
+          <input id="folio-reinsp" type="text" placeholder="R-001" oninput="guardarAuto()">
+        </div>
+      </div>
+      <div class="g2">
+        <div class="field">
+          <label>Fecha reinspección</label>
+          <input id="fecha-reinsp" type="text" placeholder="dd/mm/aaaa" oninput="guardarAuto()">
+        </div>
+        <div class="field">
+          <label>Supervisor/a</label>
+          <input id="sup-reinsp" type="text" placeholder="Nombre completo" oninput="guardarAuto()">
+        </div>
+      </div>
+      <div class="field">
+        <label>Motivo de reinspección</label>
+        <select id="motivo" onchange="guardarAuto()">
+          <option value="">Seleccionar...</option>
+          <option>Seguimiento a dictamen previo</option>
+          <option>Cambio en condición del árbol</option>
+          <option>Solicitud ciudadana</option>
+          <option>Verificación post-intervención</option>
+          <option>Denuncia</option>
+          <option>Otro</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Observaciones generales</label>
+        <textarea id="obs-reinsp" placeholder="Contexto de la reinspección..." oninput="guardarAuto()"></textarea>
+      </div>
+    </div>
+  </div>
+
+  <div style="padding:0 14px;">
+    <button class="btn btn-v btn-full" style="padding:14px;" onclick="goTab(1)">Ir a Árboles →</button>
+  </div>
+</div>
+
+<!-- SECCIÓN 1: ÁRBOLES -->
+<div class="sec" id="sec1">
+  <div id="arboles-wrap"></div>
+  <div style="padding:14px;">
+    <button class="btn btn-v btn-full" style="padding:14px;" onclick="goTab(2)">Ir a Resultado →</button>
+  </div>
+</div>
+
+<!-- SECCIÓN 2: RESULTADO Y CIERRE -->
+<div class="sec" id="sec2">
+  <div class="card">
+    <div class="card-hdr"><span>✅ Resultado de reinspección</span></div>
+    <div class="card-body">
+      <div id="resumen-reinsp"></div>
+      <div class="field" style="margin-top:12px;">
+        <label>Conclusión general</label>
+        <textarea id="conclusion" placeholder="Conclusión de la reinspección..." oninput="guardarAuto()"></textarea>
+      </div>
+      <div class="field">
+        <label>Acción recomendada</label>
+        <select id="accion-final" onchange="guardarAuto()">
+          <option value="">Seleccionar...</option>
+          <option>Mantener dictamen original</option>
+          <option>Modificar dictamen — Cambio a poda</option>
+          <option>Modificar dictamen — Cambio a derribo</option>
+          <option>Modificar dictamen — Cambio a trasplante</option>
+          <option>Dictamen sin efecto — Árbol intervenido</option>
+          <option>Dictamen sin efecto — Árbol caído/muerto</option>
+          <option>Requiere nueva evaluación</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Supervisor/a Forestal</label>
+        <input id="firma-sup" type="text" placeholder="Nombre completo" oninput="guardarAuto()">
+      </div>
+      <div class="pdf-row">
+        <button class="btn btn-v" style="flex:1;" onclick="generarPDF()">📄 Generar PDF</button>
+        <button class="btn btn-org" style="flex:1;" onclick="enviarReinspeccion()">☁️ Guardar en Drive</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- NAVBAR -->
+<div class="navbar">
+  <button class="nav-btn active" id="nav0" onclick="goTab(0)">
+    <div class="ico">📋</div><span>Datos</span><div class="nav-bar"></div>
+  </button>
+  <button class="nav-btn" id="nav1" onclick="goTab(1)">
+    <div class="ico">🌳</div><span>Árboles</span><div class="nav-bar"></div>
+  </button>
+  <button class="nav-btn" id="nav2" onclick="goTab(2)">
+    <div class="ico">✅</div><span>Resultado</span><div class="nav-bar"></div>
+  </button>
+</div>
+
+<div class="toast-el" id="toast-el"></div>
+
+<script>
+// ═══════════════════════════════════════════
+// CONFIGURACIÓN
+// ═══════════════════════════════════════════
+var SCRIPT_URL='https://script.google.com/macros/s/AKfycbyDw0hoQgY-yd431MEg3cUkqGjoImu8MQv8ecrpxBoZlj2ocaEz2L4uFpLk-dRMT0MW_w/exec';
+
+// ═══════════════════════════════════════════
+// ESTADO
+// ═══════════════════════════════════════════
+var arboles=[]; // árboles cargados del dictamen o creados manualmente
+var dictamenOrig=null; // datos del dictamen original
+
+function g(id){return document.getElementById(id);}
+function toast(msg){var t=g('toast-el');t.textContent=msg;t.classList.add('show');setTimeout(function(){t.classList.remove('show');},2500);}
+
+// ═══════════════════════════════════════════
+// NAVEGACIÓN
+// ═══════════════════════════════════════════
+function goTab(n){
+  document.querySelectorAll('.sec').forEach(function(s){s.classList.remove('active');});
+  document.querySelectorAll('.nav-btn').forEach(function(b){b.classList.remove('active');});
+  g('sec'+n).classList.add('active');
+  g('nav'+n).classList.add('active');
+  if(n===1)renderArboles();
+  if(n===2)renderResumen();
+}
+
+// ═══════════════════════════════════════════
+// BUSCAR FOLIO EN SHEETS
+// ═══════════════════════════════════════════
+function buscarFolio(){
+  var folio=(g('buscar-folio').value||'').trim().toUpperCase();
+  if(!folio){toast('Ingresa un folio');return;}
+  var res=g('resultado-folio');
+  res.style.display='block';res.className='resultado-folio';
+  res.innerHTML='🔍 Buscando folio <b>'+folio+'</b>...';
+
+  fetch(SCRIPT_URL+'?tipo=buscar&folio='+encodeURIComponent(folio))
+    .then(function(r){return r.json();})
+    .then(function(data){
+      if(data.ok&&data.arboles&&data.arboles.length){
+        dictamenOrig=data;
+        // Cargar datos del dictamen
+        g('folio-orig').value=folio;
+        // Generar folio de reinspección automático
+        if(!g('folio-reinsp').value)g('folio-reinsp').value='R-'+folio;
+        if(!g('firma-sup').value&&data.supervisor)g('firma-sup').value=data.supervisor;
+
+        // Cargar árboles del dictamen
+        arboles=data.arboles.map(function(a,i){
+          return{
+            idx:i+1,
+            nombre:a.nombre||('Árbol '+(i+1)),
+            especie:a.especie||'',
+            cientifico:a.cientifico||'',
+            altura_orig:a.altura||'',
+            dap_orig:a.dap||'',
+            sitio:a.sitio||'',
+            manejo_orig:a.manejo||'',
+            riesgo_orig:a.riesgo||'',
+            // Campos de reinspección
+            altura_nueva:'',dap_nuevo:'',estado_nuevo:'',fase_nueva:'',
+            ch_copa:[],ch_fuste:[],ch_raiz:[],
+            cambios_copa:[],cambios_fuste:[],cambios_raiz:[],
+            riesgo_nuevo:'',manejo_nuevo:'',notas:''
+          };
+        });
+
+        res.className='resultado-folio';
+        res.innerHTML='✅ Folio encontrado: <b>'+data.arboles.length+' árbol(es)</b> cargados del dictamen original.';
+        toast('✅ '+data.arboles.length+' árboles cargados');
+        guardarAuto();
+      } else {
+        res.className='resultado-folio err';
+        res.innerHTML='❌ Folio <b>'+folio+'</b> no encontrado en el concentrado. Puedes ingresar los árboles manualmente.';
+        // Permitir folio manual
+        g('folio-orig').value=folio;
+        if(!g('folio-reinsp').value)g('folio-reinsp').value='R-'+folio;
+      }
+    })
+    .catch(function(){
+      res.className='resultado-folio err';
+      res.innerHTML='⚠️ Sin conexión. Ingresa los árboles manualmente.';
+      g('folio-orig').value=folio;
+      if(!g('folio-reinsp').value)g('folio-reinsp').value='R-'+folio;
+    });
+}
+
+// ═══════════════════════════════════════════
+// ÁRBOL VACÍO (manual)
+// ═══════════════════════════════════════════
+function nuevoArbol(){
+  var n=arboles.length+1;
+  arboles.push({
+    idx:n,nombre:'Árbol '+n,especie:'',cientifico:'',
+    altura_orig:'',dap_orig:'',sitio:'',manejo_orig:'',riesgo_orig:'',
+    altura_nueva:'',dap_nuevo:'',estado_nuevo:'',fase_nueva:'',
+    ch_copa:[],ch_fuste:[],ch_raiz:[],
+    riesgo_nuevo:'',manejo_nuevo:'',notas:''
+  });
+  renderArboles();
+  guardarAuto();
+}
+
+function eliminarArbol(i){
+  if(arboles.length<=1){toast('Mínimo 1 árbol');return;}
+  arboles.splice(i,1);
+  arboles.forEach(function(a,j){a.idx=j+1;a.nombre='Árbol '+(j+1);});
+  renderArboles();
+  guardarAuto();
+}
+
+function sf(i,campo,val){
+  if(arboles[i])arboles[i][campo]=val;
+  if(campo==='riesgo_nuevo')calcResumen();
+  guardarAuto();
+}
+
+function tchk(i,campo,val){
+  var arr=arboles[i][campo]||[];
+  var idx2=arr.indexOf(val);
+  if(idx2>=0){arr.splice(idx2,1);}else{arr.push(val);}
+  arboles[i][campo]=arr;
+  guardarAuto();
+}
+
+function esc(s){return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');}
+
+// ═══════════════════════════════════════════
+// RENDER ÁRBOLES
+// ═══════════════════════════════════════════
+function renderArboles(){
+  var wrap=g('arboles-wrap');
+  if(!wrap)return;
+  if(!arboles.length){
+    wrap.innerHTML='<div style="text-align:center;padding:30px 14px;color:var(--gm);"><div style="font-size:32px;margin-bottom:8px;">🌳</div><p>No hay árboles cargados.</p><p style="font-size:12px;margin-top:6px;">Busca un folio o agrega manualmente.</p><br><button class="btn btn-v" onclick="nuevoArbol()">+ Agregar árbol</button></div>';
+    return;
+  }
+  var html='';
+  arboles.forEach(function(a,i){
+    var rC=a.riesgo_nuevo==='alto'?'alto':a.riesgo_nuevo==='medio'?'medio':'bajo';
+    html+='<div class="card">';
+    html+='<div class="card-hdr" style="justify-content:space-between;">';
+    html+='<span>🌳 Árbol #'+a.idx+(a.especie?' — '+a.especie:'')+'</span>';
+    html+='<button style="background:rgba(255,255,255,.15);border:none;color:#fff;border-radius:4px;padding:2px 8px;font-size:11px;cursor:pointer;" onclick="eliminarArbol('+i+')">✕</button>';
+    html+='</div>';
+    html+='<div class="card-body">';
+
+    // Datos originales (solo lectura)
+    if(a.manejo_orig||a.riesgo_orig){
+      html+='<div style="background:var(--vb);border-radius:var(--radius-sm);padding:8px 10px;margin-bottom:10px;font-size:11px;color:var(--v);">';
+      html+='<b>Dictamen original:</b> '+
+        (a.manejo_orig?'Manejo: <b>'+a.manejo_orig+'</b> ':'')+(a.riesgo_orig?'| Riesgo: <b>'+a.riesgo_orig+'</b>':'');
+      html+='</div>';
+    }
+
+    // Datos nuevos
+    html+='<p class="stitle">Datos de reinspección</p>';
+    html+='<div class="g2">';
+    html+='<div class="field"><label>Especie</label><input type="text" value="'+esc(a.especie)+'" placeholder="Nombre común" oninput="sf('+i+',\'especie\',this.value)"></div>';
+    html+='<div class="field"><label>N. científico</label><input type="text" value="'+esc(a.cientifico)+'" placeholder="Nombre científico" style="font-style:italic;" oninput="sf('+i+',\'cientifico\',this.value)"></div>';
+    html+='</div>';
+    html+='<div class="g2">';
+    html+='<div class="field"><label>Altura nueva (m)</label><input type="number" value="'+esc(a.altura_nueva)+'" placeholder="m" oninput="sf('+i+',\'altura_nueva\',this.value)"></div>';
+    html+='<div class="field"><label>DAP nuevo (cm)</label><input type="number" value="'+esc(a.dap_nuevo)+'" placeholder="cm" oninput="sf('+i+',\'dap_nuevo\',this.value)"></div>';
+    html+='</div>';
+    html+='<div class="g2">';
+    html+='<div class="field"><label>Estado físico</label>';
+    html+='<select onchange="sf('+i+',\'estado_nuevo\',this.value)"><option value="">Seleccionar</option>';
+    ['Bueno','Regular','Malo','Muerto'].forEach(function(v){html+='<option'+(a.estado_nuevo===v?' selected':'')+'>'+v+'</option>';});
+    html+='</select></div>';
+    html+='<div class="field"><label>Fase fenológica</label>';
+    html+='<select onchange="sf('+i+',\'fase_nueva\',this.value)"><option value="">Seleccionar</option>';
+    ['Vegetativo','Floración','Fructificación','Seco'].forEach(function(v){html+='<option'+(a.fase_nueva===v?' selected':'')+'>'+v+'</option>';});
+    html+='</select></div>';
+    html+='</div>';
+
+    // Evaluación estructural
+    html+='<p class="stitle">Evaluación estructural</p>';
+
+    function renderChk(label,campo,opciones){
+      var arr=a[campo]||[];
+      var h='<div class="field"><label>'+label+'</label><div class="chk-grid">';
+      opciones.forEach(function(op){
+        var ck=arr.indexOf(op)>=0;
+        h+='<div class="chk-item'+(ck?' ck':'')+'" onclick="tchk('+i+',\''+campo+'\',\''+op.replace(/'/g,"\\'")+'\')">';
+        h+='<div class="cb">'+(ck?'✓':'')+'</div>'+op+'</div>';
+      });
+      h+='</div></div>';
+      return h;
+    }
+
+    html+=renderChk('Copa','ch_copa',['Copa asimétrica','Rama desgajada','Horquillas incluidas','Copa densa','Muerte regresiva','Planta parásita','Pudrición ramas','Desmoche']);
+    html+=renderChk('Fuste','ch_fuste',['Grietas profundas','Cavidad/hueco','Pudrición visible','Exudados anómalos','Inclinación >30°','Daño mecánico','Corteza incluida','Hongos (cuerpos)']);
+    html+=renderChk('Sistema radicular','ch_raiz',['Raíces levantando banqueta','Raíces cortadas','Espacio reducido']);
+
+    // Resultado reinspección
+    html+='<p class="stitle">Resultado de reinspección</p>';
+    html+='<div class="field"><label>Nivel de riesgo</label>';
+    html+='<div style="display:flex;gap:6px;">';
+    ['bajo','medio','alto'].forEach(function(r){
+      var lbl=r==='bajo'?'No aplica':r==='medio'?'Medio':'Alto';
+      html+='<button style="flex:1;padding:8px;border-radius:var(--radius-sm);border:1.5px solid '+(a.riesgo_nuevo===r?'var(--v)':'var(--bdr)')+';background:'+(a.riesgo_nuevo===r?'var(--vb)':'var(--card)')+';font-weight:600;font-size:12px;cursor:pointer;color:'+(a.riesgo_nuevo===r?'var(--v)':'var(--gm)')+';" onclick="sf('+i+',\'riesgo_nuevo\',\''+r+'\');renderArboles();">'+lbl+'</button>';
+    });
+    html+='</div></div>';
+
+    html+='<div class="field"><label>Manejo recomendado</label>';
+    html+='<select onchange="sf('+i+',\'manejo_nuevo\',this.value)">';
+    html+='<option value="">Seleccionar...</option>';
+    ['Poda','Derribo','Trasplante','Sin manejo','Mantener dictamen original'].forEach(function(v){
+      html+='<option'+(a.manejo_nuevo===v?' selected':'')+'>'+v+'</option>';
+    });
+    html+='</select></div>';
+
+    html+='<div class="field"><label>Notas del árbol</label>';
+    html+='<textarea placeholder="Observaciones de cambio, condición actual..." oninput="sf('+i+',\'notas\',this.value)">'+esc(a.notas)+'</textarea></div>';
+    html+='</div></div>'; // card-body, card
+  });
+
+  // Botón agregar
+  html+='<div style="padding:0 14px 10px;">';
+  html+='<button class="btn btn-ghost btn-full" onclick="nuevoArbol()">+ Agregar árbol manualmente</button>';
+  html+='</div>';
+
+  wrap.innerHTML=html;
+}
+
+// ═══════════════════════════════════════════
+// RESUMEN
+// ═══════════════════════════════════════════
+function calcResumen(){}
+function renderResumen(){
+  var wrap=g('resumen-reinsp');
+  if(!wrap)return;
+  var totalAlto=arboles.filter(function(a){return a.riesgo_nuevo==='alto';}).length;
+  var totalMedio=arboles.filter(function(a){return a.riesgo_nuevo==='medio';}).length;
+  var totalBajo=arboles.length-totalAlto-totalMedio;
+  wrap.innerHTML=
+    '<div class="result-box '+(totalAlto>0?'alto':totalMedio>0?'medio':'bajo')+'" style="margin-bottom:10px;">' +
+    '<div><div class="result-label">Riesgo predominante</div>' +
+    '<div class="result-val '+(totalAlto>0?'alto':totalMedio>0?'medio':'bajo')+'">'+(totalAlto>0?'ALTO':totalMedio>0?'MEDIO':'NO APLICA')+'</div></div>' +
+    '<div style="text-align:right;"><div class="result-label">Total árboles</div><div style="font-size:20px;font-weight:700;">'+arboles.length+'</div></div>' +
+    '</div>'+
+    '<div style="font-size:12px;color:var(--gm);background:var(--bg);border-radius:var(--radius-sm);padding:10px;">' +
+    '🔴 Alto: <b>'+totalAlto+'</b> &nbsp; 🟡 Medio: <b>'+totalMedio+'</b> &nbsp; 🟢 No aplica: <b>'+totalBajo+'</b>' +
+    '</div>';
+}
+
+// ═══════════════════════════════════════════
+// GUARDAR AUTO (localStorage)
+// ═══════════════════════════════════════════
+function guardarAuto(){
+  try{
+    var data={
+      folio_orig:g('folio-orig')?g('folio-orig').value:'',
+      folio_reinsp:g('folio-reinsp')?g('folio-reinsp').value:'',
+      fecha:g('fecha-reinsp')?g('fecha-reinsp').value:'',
+      sup:g('sup-reinsp')?g('sup-reinsp').value:'',
+      motivo:g('motivo')?g('motivo').value:'',
+      obs:g('obs-reinsp')?g('obs-reinsp').value:'',
+      conclusion:g('conclusion')?g('conclusion').value:'',
+      accion_final:g('accion-final')?g('accion-final').value:'',
+      firma_sup:g('firma-sup')?g('firma-sup').value:'',
+      arboles:arboles
+    };
+    localStorage.setItem('reinspeccion_draft',JSON.stringify(data));
+    var b=g('folio-badge');
+    if(b&&data.folio_reinsp)b.textContent=data.folio_reinsp;
+  }catch(e){}
+}
+
+function cargarDraft(){
+  try{
+    var raw=localStorage.getItem('reinspeccion_draft');
+    if(!raw)return;
+    var d=JSON.parse(raw);
+    if(g('folio-orig')&&d.folio_orig)g('folio-orig').value=d.folio_orig;
+    if(g('folio-reinsp')&&d.folio_reinsp){g('folio-reinsp').value=d.folio_reinsp;g('folio-badge').textContent=d.folio_reinsp;}
+    if(g('fecha-reinsp')&&d.fecha)g('fecha-reinsp').value=d.fecha;
+    if(g('sup-reinsp')&&d.sup)g('sup-reinsp').value=d.sup;
+    if(g('motivo')&&d.motivo)g('motivo').value=d.motivo;
+    if(g('obs-reinsp')&&d.obs)g('obs-reinsp').value=d.obs;
+    if(g('conclusion')&&d.conclusion)g('conclusion').value=d.conclusion;
+    if(g('accion-final')&&d.accion_final)g('accion-final').value=d.accion_final;
+    if(g('firma-sup')&&d.firma_sup)g('firma-sup').value=d.firma_sup;
+    if(d.arboles&&d.arboles.length)arboles=d.arboles;
+  }catch(e){}
+}
+
+// ═══════════════════════════════════════════
+// GENERAR PDF
+// ═══════════════════════════════════════════
+function generarPDF(){
+  var folio=g('folio-reinsp')?g('folio-reinsp').value:'';
+  var folioOrig=g('folio-orig')?g('folio-orig').value:'';
+  var fecha=g('fecha-reinsp')?g('fecha-reinsp').value:'';
+  var sup=g('sup-reinsp')?g('sup-reinsp').value:'';
+  var motivo=g('motivo')?g('motivo').value:'';
+  var obs=g('obs-reinsp')?g('obs-reinsp').value:'';
+  var conclusion=g('conclusion')?g('conclusion').value:'';
+  var accion=g('accion-final')?g('accion-final').value:'';
+  var firmaSup=g('firma-sup')?g('firma-sup').value:'';
+
+  var jsPDF=window.jspdf.jsPDF;
+  var doc=new jsPDF({orientation:'portrait',unit:'mm',format:'letter'});
+  var W=215.9,M=12,cW=W-M*2,y=M;
+  var TEAL=[0,107,95],ORG=[231,111,0],BLK=[28,43,34],GR=[90,122,98],
+      LG=[216,243,220],GC=[200,215,205],WH=[255,255,255],GOLD_L=[255,248,220];
+
+  var pH=doc.internal.pageSize.height;
+  function chk(n){if(y+n>pH-12){doc.addPage();y=M;}}
+  function gap(n){y+=n||3;}
+
+  // ── Encabezado ──
+  doc.setFillColor.apply(doc,TEAL);doc.rect(0,0,W,8,'F');
+  doc.setFont('helvetica','normal');doc.setFontSize(6);doc.setTextColor.apply(doc,WH);
+  doc.text('H. Ayuntamiento de Zapopan, Jalisco  ·  Administración 2024–2027',W/2,5,'center');
+  doc.setFillColor(255,255,255);doc.rect(0,8,W,20,'F');
+  doc.setFont('helvetica','bold');doc.setFontSize(18);doc.setTextColor.apply(doc,TEAL);
+  doc.text('REINSPECCIÓN FORESTAL',W/2,19,'center');
+  doc.setFont('helvetica','bold');doc.setFontSize(8.5);
+  doc.text('Dirección de Parques y Jardines',W/2,25,'center');
+  doc.setDrawColor.apply(doc,ORG);doc.setLineWidth(1);doc.line(0,28,W,28);
+
+  // ── Banda de datos ──
+  doc.setFillColor.apply(doc,TEAL);doc.rect(0,28,W,10,'F');
+  var cols2=[{l:'FOLIO REINSP.',v:folio},{l:'FOLIO ORIGINAL',v:folioOrig},{l:'FECHA',v:fecha},{l:'SUPERVISOR',v:sup}];
+  cols2.forEach(function(col,ci){
+    var x=M+ci*(cW/4);
+    doc.setFont('helvetica','bold');doc.setFontSize(5.5);doc.setTextColor(180,235,225);
+    doc.text(col.l,x,32);
+    doc.setFont('helvetica','bold');doc.setFontSize(8);doc.setTextColor.apply(doc,WH);
+    doc.text(col.v||'—',x,37);
+  });
+  y=42;
+
+  // ── Motivo ──
+  if(motivo){
+    chk(12);
+    doc.setFillColor.apply(doc,LG);doc.rect(M,y,cW,8,'F');
+    doc.setFont('helvetica','bold');doc.setFontSize(7);doc.setTextColor.apply(doc,TEAL);
+    doc.text('Motivo de reinspección:',M+2,y+5.2);
+    doc.setFont('helvetica','normal');doc.setFontSize(8);doc.setTextColor.apply(doc,BLK);
+    doc.text(motivo,M+52,y+5.2);
+    y+=8;gap(2);
+  }
+
+  // ── Observaciones ──
+  if(obs){
+    chk(14);
+    doc.setFillColor.apply(doc,TEAL);doc.rect(M,y,cW,7,'F');
+    doc.setFont('helvetica','bold');doc.setFontSize(8);doc.setTextColor.apply(doc,WH);
+    doc.text('Observaciones generales',M+3,y+5);y+=7;
+    var obsL=doc.splitTextToSize(obs,cW-4);
+    var oh=Math.max(8,obsL.length*4.5+4);
+    doc.setFillColor(255,255,255);doc.rect(M,y,cW,oh,'F');
+    doc.setDrawColor.apply(doc,GC);doc.setLineWidth(0.2);doc.rect(M,y,cW,oh,'S');
+    doc.setFont('helvetica','normal');doc.setFontSize(8);doc.setTextColor.apply(doc,BLK);
+    obsL.forEach(function(l,li){doc.text(l,M+3,y+4.5+li*4.5);});
+    y+=oh;gap(3);
+  }
+
+  // ── TABLA ÁRBOLES (fiel al formato físico de la imagen) ──
+  chk(20);
+  doc.setFillColor.apply(doc,TEAL);doc.rect(M,y,cW,7.5,'F');
+  doc.setFont('helvetica','bold');doc.setFontSize(8.5);doc.setTextColor.apply(doc,WH);
+  doc.text('REINSPECCIÓN',M+3,y+5.3);y+=7.5;
+
+  // Sub-header
+  var tc=[{t:'#',w:7},{t:'Nombre vulgar',w:28},{t:'Nombre científico',w:34},
+          {t:'Alt. (m)',w:14},{t:'Fuste (cm)',w:16},{t:'Fase',w:14},
+          {t:'Estado',w:16},{t:'Ramif.',w:14},{t:'Fte. Art.',w:cW-143}];
+  var xA=0;tc.forEach(function(col){col.x=xA;xA+=col.w;});
+  doc.setFillColor.apply(doc,GOLD_L);
+  tc.forEach(function(col){doc.rect(M+col.x,y,col.w,7,'F');});
+  doc.setDrawColor.apply(doc,GC);doc.setLineWidth(0.2);
+  tc.forEach(function(col){doc.rect(M+col.x,y,col.w,7,'S');});
+  doc.setFont('helvetica','bold');doc.setFontSize(6);doc.setTextColor.apply(doc,BLK);
+  tc.forEach(function(col){
+    var s=doc.splitTextToSize(col.t,col.w-1);
+    s.forEach(function(l,li){doc.text(l,M+col.x+col.w/2,y+3+li*3,'center');});
+  });
+  y+=7;
+
+  // Filas
+  arboles.forEach(function(a,i){
+    var artRef='';
+    var manejos=[];
+    if(a.manejo_nuevo==='Poda')manejos.push('Art. 33');
+    else if(a.manejo_nuevo==='Derribo')manejos.push('Art. 35');
+    else if(a.manejo_nuevo)manejos.push(a.manejo_nuevo);
+    artRef=manejos.join('/');
+
+    var dv=[String(i+1),a.especie||'—',a.cientifico||'—',
+            a.altura_nueva?a.altura_nueva+' m':'—',a.dap_nuevo?a.dap_nuevo+' cm':'—',
+            a.fase_nueva||'—',a.estado_nuevo||'—','—',artRef||'—'];
+
+    var maxH=7;
+    tc.forEach(function(col,ci){
+      var s=doc.splitTextToSize(String(dv[ci]||''),col.w-2);
+      var h=Math.max(7,s.length*4+3);if(h>maxH)maxH=h;
+    });
+    chk(maxH);
+    if(i%2===0){doc.setFillColor(255,255,255);}else{doc.setFillColor.apply(doc,LG);}
+    tc.forEach(function(col){doc.rect(M+col.x,y,col.w,maxH,'F');});
+    doc.setDrawColor.apply(doc,GC);doc.setLineWidth(0.15);
+    tc.forEach(function(col){doc.rect(M+col.x,y,col.w,maxH,'S');});
+    doc.setFont('helvetica','normal');doc.setFontSize(7);
+    tc.forEach(function(col,ci){
+      if(ci===2)doc.setFont('helvetica','italic');else doc.setFont('helvetica','normal');
+      doc.setTextColor.apply(doc,BLK);
+      var s=doc.splitTextToSize(String(dv[ci]||''),col.w-2);
+      s.forEach(function(l,li){doc.text(l,M+col.x+col.w/2,y+4.5+li*4,'center');});
+    });
+    y+=maxH;
+  });
+  gap(3);
+
+  // ── Evaluación estructural por árbol ──
+  arboles.forEach(function(a,i){
+    chk(60);
+    doc.setFillColor.apply(doc,TEAL);doc.rect(M,y,cW,8,'F');
+    doc.setFont('helvetica','bold');doc.setFontSize(9);doc.setTextColor.apply(doc,WH);
+    doc.text('Árbol #'+(i+1)+(a.especie?' — '+a.especie:''),M+3,y+5.5);
+    if(a.riesgo_nuevo){
+      var rCol=a.riesgo_nuevo==='alto'?[200,40,40]:a.riesgo_nuevo==='medio'?[180,120,0]:[27,100,60];
+      var rLbl=a.riesgo_nuevo==='alto'?'ALTO':a.riesgo_nuevo==='medio'?'MEDIO':'NO APLICA';
+      doc.setFont('helvetica','bold');doc.setFontSize(7.5);doc.setTextColor.apply(doc,rCol);
+      doc.text('Riesgo: '+rLbl,W-M-2,y+5.5,'right');
+    }
+    y+=8;
+
+    var LW2=cW/2,RW2=cW/2;
+    // Copa izq
+    var copaT=a.ch_copa&&a.ch_copa.length?a.ch_copa.join('; '):'Sin hallazgos';
+    var fusteT=a.ch_fuste&&a.ch_fuste.length?a.ch_fuste.join('; '):'Sin hallazgos';
+    var raizT=a.ch_raiz&&a.ch_raiz.length?a.ch_raiz.join('; '):'Sin hallazgos';
+    var manejoT=a.manejo_nuevo||'Sin manejo';
+
+    function evalFila(lbl,txt,xOff,w,shade){
+      var sL=doc.splitTextToSize(lbl,16);
+      var sH=doc.splitTextToSize(txt,w-20);
+      var h=Math.max(7,Math.max(sL.length,sH.length)*4+3);
+      chk(h);
+      if(shade){doc.setFillColor.apply(doc,GOLD_L);}else{doc.setFillColor(255,255,255);}
+      doc.rect(M+xOff,y,w,h,'F');
+      doc.setDrawColor.apply(doc,GC);doc.setLineWidth(0.15);doc.rect(M+xOff,y,w,h,'S');
+      doc.setFont('helvetica','bold');doc.setFontSize(6.5);doc.setTextColor.apply(doc,TEAL);
+      sL.forEach(function(l,li){doc.text(l,M+xOff+2,y+4+li*4);});
+      doc.setFont('helvetica','normal');doc.setFontSize(7);doc.setTextColor.apply(doc,BLK);
+      sH.forEach(function(l,li){doc.text(l,M+xOff+18,y+4+li*4);});
+      return h;
+    }
+
+    var hCopa=evalFila('Copa',copaT,0,LW2,false);
+    var yBef=y;y=yBef;
+    evalFila('Req./Manejo',manejoT,LW2,RW2,true);
+    y=yBef+hCopa;
+
+    var hFuste=evalFila('Fuste',fusteT,0,LW2,true);
+    yBef=y;y=yBef;
+    // Afectaciones
+    var afectT=a.sitio||'—';
+    evalFila('Sitio',afectT,LW2,RW2,false);
+    y=yBef+hFuste;
+
+    evalFila('Sistema radicular',raizT,0,cW,false);
+
+    // Notas
+    if(a.notas){
+      var sN=doc.splitTextToSize(a.notas,cW-4);
+      var hn=Math.max(7,sN.length*4+3);chk(hn);
+      doc.setFillColor.apply(doc,LG);doc.rect(M,y,cW,hn,'F');
+      doc.setDrawColor.apply(doc,GC);doc.setLineWidth(0.15);doc.rect(M,y,cW,hn,'S');
+      doc.setFont('helvetica','bold');doc.setFontSize(6.5);doc.setTextColor.apply(doc,TEAL);
+      doc.text('Notas:',M+2,y+4);
+      doc.setFont('helvetica','normal');doc.setFontSize(7);doc.setTextColor.apply(doc,BLK);
+      sN.forEach(function(l,li){doc.text(l,M+16,y+4+li*4);});
+      y+=hn;
+    }
+    gap(3);
+  });
+
+  // ── Resultado y conclusión ──
+  chk(50);
+  doc.setFillColor.apply(doc,TEAL);doc.rect(M,y,cW,7.5,'F');
+  doc.setFont('helvetica','bold');doc.setFontSize(8.5);doc.setTextColor.apply(doc,WH);
+  doc.text('Resultado de reinspección',M+3,y+5.3);y+=7.5;
+
+  if(conclusion){
+    var sC=doc.splitTextToSize(conclusion,cW-4);
+    var hC=Math.max(10,sC.length*4.5+4);
+    doc.setFillColor(255,255,255);doc.rect(M,y,cW,hC,'F');
+    doc.setDrawColor.apply(doc,GC);doc.setLineWidth(0.2);doc.rect(M,y,cW,hC,'S');
+    doc.setFont('helvetica','normal');doc.setFontSize(8);doc.setTextColor.apply(doc,BLK);
+    sC.forEach(function(l,li){doc.text(l,M+3,y+4.5+li*4.5);});
+    y+=hC;gap(2);
+  }
+
+  if(accion){
+    doc.setFillColor.apply(doc,GOLD_L);doc.rect(M,y,cW,9,'F');
+    doc.setDrawColor.apply(doc,GC);doc.setLineWidth(0.2);doc.rect(M,y,cW,9,'S');
+    doc.setFont('helvetica','bold');doc.setFontSize(7);doc.setTextColor.apply(doc,TEAL);
+    doc.text('Acción recomendada:',M+2,y+5.5);
+    doc.setFont('helvetica','bold');doc.setFontSize(8);doc.setTextColor.apply(doc,BLK);
+    doc.text(accion,M+46,y+5.5);
+    y+=9;gap(4);
+  }
+
+  // ── Basados en los artículos ──
+  chk(28);
+  doc.setFont('helvetica','bold');doc.setFontSize(7.5);doc.setTextColor.apply(doc,BLK);
+  doc.text('Basados en los Artículos:',M,y+5);y+=8;
+  var artText=[
+    'Derribo  Art. 35  I(  ), II(  ), III(  ), IV(  ), V(  ), VI(  ), VII(  ), VIII(  )',
+    'Poda     Art. 33  I a(  ), b(  ), c(  ), d(  ), e(  ), f(  ), II a(  ), b(  ), c(  ), III(  ), IV a(  ), b(  ), c(  ), V(  )',
+    'NAE-SEMADES 001/2003',
+    'Trasplante  5.4.1(  ), 5.4.2(  ), 5.4.3(  ), 5.4.4(  ), 5.4.5(  ), 5.4.6(  ), 5.4.7(  )',
+    'Derribo     5.6.1(  ), 5.6.2(  ), 5.6.3(  ), 5.6.4(  ), 5.6.5(  ), 5.6.6(  ), 5.6.7(  ), 5.6.8(  )'
+  ];
+  doc.setFont('helvetica','normal');doc.setFontSize(7);doc.setTextColor.apply(doc,BLK);
+  artText.forEach(function(line,li){
+    var isTitle=line.startsWith('NAE');
+    if(isTitle)doc.setFont('helvetica','bold');else doc.setFont('helvetica','normal');
+    doc.text(line,M+(isTitle?0:4),y+li*5);
+  });
+  y+=artText.length*5+4;
+
+  // ── Firmas ──
+  chk(38);
+  var fw=(cW-14)/2;
+  doc.setDrawColor.apply(doc,BLK);doc.setLineWidth(0.4);
+  doc.line(M,y+24,M+fw,y+24);
+  doc.line(M+fw+14,y+24,M+fw*2+14,y+24);
+  doc.setFont('helvetica','normal');doc.setFontSize(7);doc.setTextColor.apply(doc,GR);
+  doc.text('Supervisor Forestal',M+fw/2,y+5,'center');
+  doc.text('DIRECCIÓN DE PARQUES Y JARDINES',M+fw+14+fw/2,y+5,'center');
+  doc.setFont('helvetica','bold');doc.setFontSize(8);doc.setTextColor.apply(doc,BLK);
+  doc.text(firmaSup||'Supervisor/a Forestal',M+fw/2,y+29,'center');
+  doc.setFont('helvetica','normal');doc.setFontSize(7);doc.setTextColor.apply(doc,GR);
+  doc.text('Jefe del Área',M+fw+14+fw/2,y+29,'center');
+
+  doc.save('Reinspeccion_'+(folio||'ZAP')+'_'+(fecha||'').replace(/\//g,'')+'.pdf');
+  toast('📄 PDF generado');
+}
+
+// ═══════════════════════════════════════════
+// ENVIAR A DRIVE
+// ═══════════════════════════════════════════
+function enviarReinspeccion(){
+  var folio=g('folio-reinsp')?g('folio-reinsp').value:'';
+  var fecha=g('fecha-reinsp')?g('fecha-reinsp').value:'';
+  toast('☁️ Enviando a Drive...');
+  var datos={
+    tipo:'reinspeccion',
+    folio_reinsp:folio,
+    folio_orig:g('folio-orig')?g('folio-orig').value:'',
+    fecha:fecha,
+    supervisor:g('sup-reinsp')?g('sup-reinsp').value:'',
+    motivo:g('motivo')?g('motivo').value:'',
+    obs:g('obs-reinsp')?g('obs-reinsp').value:'',
+    conclusion:g('conclusion')?g('conclusion').value:'',
+    accion_final:g('accion-final')?g('accion-final').value:'',
+    arboles:arboles.map(function(a){return{
+      nombre:a.especie||a.nombre,especie:a.especie,cientifico:a.cientifico,
+      altura:a.altura_nueva,dap:a.dap_nuevo,estado:a.estado_nuevo,fase:a.fase_nueva,
+      ch_copa:a.ch_copa,ch_fuste:a.ch_fuste,ch_raiz:a.ch_raiz,
+      riesgo:a.riesgo_nuevo,manejo:a.manejo_nuevo,notas:a.notas
+    };})
+  };
+  fetch(SCRIPT_URL,{
+    method:'POST',
+    headers:{'Content-Type':'text/plain'},
+    body:JSON.stringify(datos)
+  })
+  .then(function(){toast('✅ Guardado en Drive');})
+  .catch(function(){toast('❌ Error al enviar');});
+}
+
+// ═══════════════════════════════════════════
+// AUTO-FECHA Y CARGAR DRAFT
+// ═══════════════════════════════════════════
+window.addEventListener('load',function(){
+  // Poner fecha de hoy
+  var hoy=new Date();
+  var dd=String(hoy.getDate()).padStart(2,'0');
+  var mm=String(hoy.getMonth()+1).padStart(2,'0');
+  var yyyy=hoy.getFullYear();
+  if(g('fecha-reinsp')&&!g('fecha-reinsp').value)g('fecha-reinsp').value=dd+'/'+mm+'/'+yyyy;
+  cargarDraft();
+  renderArboles();
+});
+</script>
+</body>
+</html>
