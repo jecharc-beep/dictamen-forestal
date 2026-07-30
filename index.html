@@ -821,9 +821,14 @@ function generarPDF(returnBlob){
         var sMT2=doc.splitTextToSize(manejoTxt2,RW-4);
         var tipoPodaTxt=a.tipo_poda||'—';
         var pctTxt=a.pct_poda?a.pct_poda+'%':'—';
-        // Subdividir col der en 2 filas: Manejo arriba / Tipo+% abajo
-        var hMan=Math.max(h*0.45,tH*1.2);
-        var hTip=h-hMan;
+        // Calcular líneas de tipo poda para ajustar altura
+        var tW=RW*0.65, pW=RW-tW;
+        doc.setFont('helvetica','normal');doc.setFontSize(fsManejo);
+        var sTip=doc.splitTextToSize(tipoPodaTxt,tW-20);
+        var hMan=Math.max(h*0.40,tH*1.1);
+        var hTip=Math.max(h-hMan, sTip.length*fsManejo*0.65+5);
+        // Recalcular h total si tipo poda necesita más espacio
+        var hTotal=hMan+hTip;
         // Manejo — amarillo
         doc.setFillColor.apply(doc,GOLD_L);doc.rect(M+LW,y,RW,hMan,'F');
         doc.setDrawColor.apply(doc,GC);doc.rect(M+LW,y,RW,hMan,'S');
@@ -831,8 +836,7 @@ function generarPDF(returnBlob){
         doc.text('Manejo:',M+LW+2,y+4);
         doc.setFont('helvetica','bold');doc.setFontSize(fsManejo);doc.setTextColor.apply(doc,BLK);
         sMT2.forEach(function(l,li){doc.text(l,M+LW+18,y+4+li*fsManejo*0.65);});
-        // Tipo poda (izq) + % (der) — amarillo
-        var tW=RW*0.65, pW=RW-tW;
+        // Tipo poda (izq) + % (der) — amarillo con altura dinámica
         doc.setFillColor.apply(doc,GOLD_L);doc.rect(M+LW,y+hMan,tW,hTip,'F');
         doc.setFillColor.apply(doc,GOLD_L);doc.rect(M+LW+tW,y+hMan,pW,hTip,'F');
         doc.setDrawColor.apply(doc,GC);
@@ -840,7 +844,6 @@ function generarPDF(returnBlob){
         doc.setFont('helvetica','bold');doc.setFontSize(fsManejo);doc.setTextColor.apply(doc,TEAL);
         doc.text('Tipo poda:',M+LW+2,y+hMan+4);
         doc.setFont('helvetica','normal');doc.setFontSize(fsManejo);doc.setTextColor.apply(doc,BLK);
-        var sTip=doc.splitTextToSize(tipoPodaTxt,tW-20);
         sTip.forEach(function(l,li){doc.text(l,M+LW+18,y+hMan+4+li*fsManejo*0.65);});
         doc.setFont('helvetica','bold');doc.setFontSize(fsManejo);doc.setTextColor.apply(doc,TEAL);
         doc.text('%:',M+LW+tW+1.5,y+hMan+4);
