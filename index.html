@@ -156,7 +156,7 @@ body{font-family:'IBM Plex Sans',sans-serif;background:var(--fo);color:var(--gr)
     <div class="card"><div class="cb">
       <div class="field"><label>Folio / Solicitud</label><input type="text" id="folio" placeholder="ZAP-001" oninput="folioChange()" autocomplete="off"></div>
       <div class="g2">
-        <div class="field"><label>Fecha</label><input type="date" id="fecha" readonly style="background:var(--fo);cursor:default;"></div>
+        <div class="field"><label>Fecha</label><input type="date" id="fecha" oninput="guardarAuto()"></div>
         <div class="field"><label>Hora</label><input type="time" id="hora" readonly style="background:var(--fo);cursor:default;"></div>
       </div>
       <div class="field"><label>Supervisor/a Forestal</label><input type="text" id="sup" placeholder="Nombre completo" oninput="syncSup();guardarAuto()" autocomplete="name"></div>
@@ -505,7 +505,7 @@ function buildArbol(id){
   h+='</div><div class="sep"></div><p class="stitle">Ciclo biológico</p><div class="ckg c2">';
   ['Pequeño','Joven','Maduro','Viejo','Histórico'].forEach(function(v){h+=excl(a,'ciclo',v,v);});
   h+='</div><div class="sep"></div><p class="stitle">Ramificación</p><div class="ckg">';
-  ['Monopódico','Dicotómico','Simpódico'].forEach(function(v){h+=excl(a,'ram',v,v);});
+  ['Monopódico','Dicotómico','Policotómico'].forEach(function(v){h+=excl(a,'ram',v,v);});
   h+='</div></div></div>';
   h+=dCard(a,'ch_copa','🌿 Copa','vrd',[['w','Copa asimétrica'],['d','Rama desgajada/colgante'],['d','Horquillas incluidas'],['w','Copa excesivamente densa'],['d','Muerte regresiva'],['w','Presencia de planta parásita'],['d','Pudrición en ramas'],['w','Desmoche']]);
   h+=dCard(a,'ch_fuste','🪵 Fuste','vrd',[['d','Grietas profundas'],['d','Cavidad/hueco'],['d','Pudrición visible'],['w','Exudados anómalos'],['d','Inclinación >30°'],['w','Daño mecánico (tejido vivo expuesto)'],['w','Corteza incluida'],['d','Presencia de hongos (cuerpos fructíferos)']]);
@@ -555,6 +555,7 @@ function buildArbol(id){
   h+=acord('p3','Fracción IV — Fitosanitaria',bChks(a,'ch_poda',[['w','a) Eliminación de ramas muertas, plagadas o enfermas'],['w','b) Ramas con hongos, cancros o pudriciones visibles'],['w','c) Eliminación de plantas parásitas o trepadoras']]));
   h+=acord('p4','Fracción V — Restauración de estructura',bChks(a,'ch_poda',[['','a) Árboles podados más del 25% o con desmoches previos'],['','b) Copas desbalanceadas que requieren reequilibrio'],['','c) Follaje reprimido que requiere formación o topiaria']]));
   h+=acord('p5','Fracción VI — Afectación a infraestructura',bChks(a,'ch_poda',[['w','a) Interferencia con tuberías de agua o drenaje'],['w','b) Daño o riesgo a cableado eléctrico o telecomunicaciones'],['w','c) Levantamiento de banquetas o guarniciones por ramas bajas'],['w','d) Interferencia con bardas, muros o construcciones']]));
+  h+=acord('p6','Poda estética o jardinera Art. 59',bChks(a,'ch_poda',[['w','No se requiere permiso para ejecutarla (Diámetro de ramas menor a 7.5 cm)']]));
   // Campos tipo de poda y % poda
   h+='<div class="field" style="margin-top:10px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">';
   h+='<label style="font-weight:600;font-size:13px;white-space:nowrap;">Tipo de poda:</label>';
@@ -884,12 +885,14 @@ function generarPDF(returnBlob){
       });
       // NAE
       (a.ch_nae_der||[]).forEach(function(v){
-        var num=v.match(/^(5\.\d+)/);
-        if(num)partes.push('NAE '+num[1]);
+        var num=v.match(/^(5\.\d+\.\d+)/);
+        if(num)partes.push('NAE-SEMADES '+num[1]);
+        else{var num2=v.match(/^(5\.\d+)/);if(num2)partes.push('NAE-SEMADES '+num2[1]);}
       });
       (a.ch_nae_tras||[]).forEach(function(v){
-        var num=v.match(/^(5\.\d+)/);
-        if(num)partes.push('NAE '+num[1]);
+        var num=v.match(/^(5\.\d+\.\d+)/);
+        if(num)partes.push('NAE-SEMADES '+num[1]);
+        else{var num2=v.match(/^(5\.\d+)/);if(num2)partes.push('NAE-SEMADES '+num2[1]);}
       });
       // Deduplicar
       var seen={};
@@ -1103,6 +1106,21 @@ function generarPDF(returnBlob){
   // ── PÁGINA 2: Croquis + Coordenadas + Firmas ──
   doc.addPage();cabecera();
   seccionCroquis();
+  // Notas de campo antes de firmas
+  arboles.forEach(function(a,idx){
+    if(a.notas){
+      chkPg(18);
+      doc.setFillColor.apply(doc,TEAL_L);doc.rect(M,y,cW,7,'F');
+      doc.setFont('helvetica','bold');doc.setFontSize(8);doc.setTextColor.apply(doc,TEAL);
+      doc.text('Notas de campo — Árbol #'+(idx+1),M+3,y+5);y+=7;
+      var nS=doc.splitTextToSize(a.notas,cW-6);
+      var nh=Math.max(8,nS.length*4.5+4);chkPg(nh);
+      doc.setFillColor(255,255,255);doc.rect(M,y,cW,nh,'F');
+      doc.setDrawColor.apply(doc,GC);doc.setLineWidth(0.2);doc.rect(M,y,cW,nh,'S');
+      doc.setFont('helvetica','normal');doc.setFontSize(8);doc.setTextColor.apply(doc,BLK);
+      nS.forEach(function(l,i){doc.text(l,M+3,y+4.5+i*4.5);});y+=nh+3;
+    }
+  });
   seccionFirmas();
 
   // Fotos
