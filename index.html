@@ -139,6 +139,7 @@ body{font-family:'IBM Plex Sans',sans-serif;background:var(--fo);color:var(--gr)
     <div class="ht"><h1>Dictamen Forestal</h1><p>Parques y Jardines Zapopan</p></div>
   </div>
   <div class="fbadge">
+    <button onclick="nuevoDictamen()" style="background:rgba(255,255,255,.18);border:none;color:#fff;border-radius:8px;padding:5px 10px;font-size:11px;font-weight:700;cursor:pointer;margin-right:6px;font-family:inherit;">+ Nuevo</button>
     <span id="sync-badge" style="font-size:20px;">⚪</span>
     <div class="folio-tag">FOLIO<br><strong id="folio-display">ZAP-000</strong></div>
   </div>
@@ -1304,7 +1305,39 @@ function addMarker(lat,lng){if(!map)return;var n=marcadores.length+1;var ic=L.di
 function limpiarMarcadores(){marcadores.forEach(function(o){if(map)map.removeLayer(o.m);});marcadores=[];updCoords();toast('🗑 Marcadores eliminados');}
 function updCoords(){var c=g('coords-wrap');if(!c)return;if(!marcadores.length){c.style.display='none';return;}c.style.display='block';c.innerHTML='<div style="background:var(--vb);border:2px solid var(--vl);border-radius:var(--radius-sm);padding:10px;"><p style="font-size:12px;font-weight:700;color:var(--v);margin-bottom:6px;">📍 '+marcadores.length+' árbol(es) marcado(s)</p>'+marcadores.map(function(o,i){return'<div style="font-size:12px;color:var(--gm);margin-bottom:3px;">🌳 #'+(i+1)+' · '+o.lat.toFixed(5)+', '+o.lng.toFixed(5)+'</div>';}).join('')+'</div>';}
 function syncSup(){var v=g('sup')?g('sup').value:'';var f=g('firma-sup');if(f)f.textContent=v;}
-function folioChange(){var v=g('folio')?g('folio').value:'';g('folio-display').textContent=v||'ZAP-000';guardarAuto();}
+function nuevoDictamen(){
+  if(!confirm('¿Iniciar un nuevo dictamen? Se borrarán todos los datos actuales.'))return;
+  // Limpiar localStorage
+  try{localStorage.removeItem(SKEY);}catch(e){}
+  // Reiniciar estado
+  arboles=[];
+  arbolActivo=0;
+  fotosArr=[];
+  marcadores.forEach(function(m){if(m.m)m.m.remove();});
+  marcadores=[];
+  if(window._gpsCircle){window._gpsCircle.remove();window._gpsCircle=null;}
+  // Limpiar campos de datos generales
+  ['folio','sup','prog','obs'].forEach(function(id){if(g(id))g(id).value='';});
+  // Nueva fecha de hoy
+  var hoy=new Date();
+  var dd=String(hoy.getDate()).padStart(2,'0');
+  var mm=String(hoy.getMonth()+1).padStart(2,'0');
+  if(g('fecha'))g('fecha').value=hoy.getFullYear()+'-'+mm+'-'+dd;
+  // Nuevo folio aleatorio
+  var fv='ZAP-'+String(Math.floor(Math.random()*900)+100);
+  if(g('folio'))g('folio').value=fv;
+  if(g('folio-display'))g('folio-display').textContent=fv;
+  // Agregar árbol vacío
+  arboles.push(nuevoArbol(1));
+  arbolActivo=0;
+  // Volver a pestaña Datos
+  goTab(0);
+  renderLista();
+  renderArbol();
+  updCoords();
+  setSyncBadge('');
+  toast('✅ Nuevo dictamen iniciado');
+}
 function agregarFotos(inp){
   var MAX_FOTOS=10;
   var archivos=Array.from(inp.files);
