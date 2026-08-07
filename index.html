@@ -244,16 +244,19 @@ var SKEY='zap_gh_v1';
 var IMG_PARQUES='',IMG_GOBZAP='',IMG_CROQUIS='';
 (function precargarImgsPDF(){
   function toB64(url,cb){
-    fetch(url).then(function(r){return r.blob();}).then(function(b){
+    fetch(url).then(function(r){
+      if(!r.ok){console.warn('[precarga PDF] '+url+' respondió '+r.status);}
+      return r.blob();
+    }).then(function(b){
       var rd=new FileReader();
       rd.onload=function(e){cb(e.target.result.split(',')[1]);};
-      rd.onerror=function(){cb('');};
+      rd.onerror=function(){console.warn('[precarga PDF] no se pudo leer '+url);cb('');};
       rd.readAsDataURL(b);
-    }).catch(function(){cb('');});
+    }).catch(function(err){console.warn('[precarga PDF] fetch falló para '+url,err);cb('');});
   }
   toB64('logo-parques.jpg',function(b){IMG_PARQUES=b;});
   toB64('logo-gobzap.jpg', function(b){IMG_GOBZAP=b;});
-  toB64('croquis-ubicacion.png', function(b){IMG_CROQUIS=b;});
+  toB64('croquis-ubicacion.jpg', function(b){IMG_CROQUIS=b;});
 })();
 
 var arboles=[],arbolActivo=0,fotosArr=[];
@@ -812,9 +815,21 @@ function generarPDF(returnBlob){
     var maxH=150;
     if(imgH>maxH){imgH=maxH;imgW=imgH/imgRatio;}
     var imgX=M+(cW-imgW)/2,imgY=y;
-    try{
-      doc.addImage('data:image/png;base64,'+IMG_CROQUIS,'PNG',imgX,imgY,imgW,imgH);
-    }catch(e){}
+    if(IMG_CROQUIS){
+      try{
+        doc.addImage('data:image/jpeg;base64,'+IMG_CROQUIS,'JPEG',imgX,imgY,imgW,imgH);
+      }catch(e){
+        console.error('No se pudo insertar la imagen de croquis:',e);
+        doc.setFillColor(245,245,245);doc.rect(imgX,imgY,imgW,imgH,'F');
+        doc.setFont('helvetica','normal');doc.setFontSize(8);doc.setTextColor.apply(doc,GR);
+        doc.text('No se pudo cargar la imagen del croquis',imgX+imgW/2,imgY+imgH/2,'center');
+      }
+    } else {
+      console.warn('IMG_CROQUIS está vacío: croquis-ubicacion.jpg no se pudo precargar.');
+      doc.setFillColor(245,245,245);doc.rect(imgX,imgY,imgW,imgH,'F');
+      doc.setFont('helvetica','normal');doc.setFontSize(8);doc.setTextColor.apply(doc,GR);
+      doc.text('No se pudo cargar la imagen del croquis',imgX+imgW/2,imgY+imgH/2,'center');
+    }
     doc.setDrawColor.apply(doc,GC);doc.setLineWidth(0.3);doc.rect(imgX,imgY,imgW,imgH,'S');
     y=imgY+imgH+4;
     gap(4);
