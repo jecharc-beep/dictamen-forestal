@@ -236,12 +236,12 @@ body{font-family:'IBM Plex Sans',sans-serif;background:var(--fo);color:var(--gr)
 var SCRIPT_URL='https://script.google.com/macros/s/AKfycbyDw0hoQgY-yd431MEg3cUkqGjoImu8MQv8ecrpxBoZlj2ocaEz2L4uFpLk-dRMT0MW_w/exec';
 var SKEY='zap_gh_v1';
 
-// ── Precarga de imágenes fijas del PDF (logos + croquis) ──
+// ── Precarga de imágenes fijas del PDF (logos) ──
 // Se cargan una sola vez al abrir la app para que ya estén listas
 // (en base64) cuando el usuario genere el PDF; generarPDF() ya no
 // dispara fetch() por su cuenta, evitando que el PDF se construya
 // antes de que la imagen termine de cargar.
-var IMG_PARQUES='',IMG_GOBZAP='',IMG_CROQUIS='';
+var IMG_PARQUES='',IMG_GOBZAP='';
 (function precargarImgsPDF(){
   function toB64(url,cb){
     fetch(url).then(function(r){
@@ -256,7 +256,6 @@ var IMG_PARQUES='',IMG_GOBZAP='',IMG_CROQUIS='';
   }
   toB64('logo-parques.jpg',function(b){IMG_PARQUES=b;});
   toB64('logo-gobzap.jpg', function(b){IMG_GOBZAP=b;});
-  toB64('croquis-ubicacion.jpg', function(b){IMG_CROQUIS=b;});
 })();
 
 var arboles=[],arbolActivo=0,fotosArr=[];
@@ -310,11 +309,11 @@ function _enviarDictamen(){
   var folio=g('folio')?g('folio').value:'',fecha=g('fecha')?g('fecha').value:'',hora=g('hora')?g('hora').value:'',supervisor=g('sup')?g('sup').value:'',programa=g('prog')?g('prog').value:'',obs=g('obs')?g('obs').value:'';
   showModal('Generando dictamen…','Creando PDF y enviando a Drive…');
   setSyncBadge('sync');
-  // Si por alguna razón las imágenes fijas del PDF (logos/croquis) aún
+  // Si por alguna razón las imágenes fijas del PDF (logos) aún
   // no terminaron de precargar, esperamos un poco antes de generar.
   var _t0=Date.now();
   (function esperarImgs(){
-    if((IMG_PARQUES&&IMG_GOBZAP&&IMG_CROQUIS)||Date.now()-_t0>4000){_generarYEnviar();}
+    if((IMG_PARQUES&&IMG_GOBZAP)||Date.now()-_t0>4000){_generarYEnviar();}
     else setTimeout(esperarImgs,100);
   })();
 }
@@ -495,7 +494,7 @@ function renderResumen(){
 // ══════════════════════════════════════════════════════════
 // VERSION: 2026-07-07-v14-tabla-arboles
 function generarPDF(returnBlob){
-  // IMG_PARQUES / IMG_GOBZAP / IMG_CROQUIS se precargan una sola vez
+  // IMG_PARQUES / IMG_GOBZAP se precargan una sola vez
   // al abrir la app (ver precargarImgsPDF más arriba) y se usan aquí
   // directamente — ya están listas cuando el usuario llega a "Finalizar".
 
@@ -803,38 +802,6 @@ function generarPDF(returnBlob){
     y+=mh2;gap(2);
   }
 
-  // ── UBICACIÓN - CROQUIS ──
-  // Sección fija: siempre forma parte del PDF, igual que los encabezados.
-  function seccionCroquis(){
-    chkPg(100);
-    doc.setFillColor.apply(doc,TEAL_L);doc.rect(M,y,cW,7,'F');
-    doc.setFont('helvetica','bold');doc.setFontSize(8.5);doc.setTextColor.apply(doc,TEAL);
-    doc.text('Ubicación - Croquis',M+4,y+5);y+=9;
-
-    var imgW=cW,imgRatio=309/366,imgH=imgW*imgRatio;
-    var maxH=150;
-    if(imgH>maxH){imgH=maxH;imgW=imgH/imgRatio;}
-    var imgX=M+(cW-imgW)/2,imgY=y;
-    if(IMG_CROQUIS){
-      try{
-        doc.addImage('data:image/jpeg;base64,'+IMG_CROQUIS,'JPEG',imgX,imgY,imgW,imgH);
-      }catch(e){
-        console.error('No se pudo insertar la imagen de croquis:',e);
-        doc.setFillColor(245,245,245);doc.rect(imgX,imgY,imgW,imgH,'F');
-        doc.setFont('helvetica','normal');doc.setFontSize(8);doc.setTextColor.apply(doc,GR);
-        doc.text('No se pudo cargar la imagen del croquis',imgX+imgW/2,imgY+imgH/2,'center');
-      }
-    } else {
-      console.warn('IMG_CROQUIS está vacío: croquis-ubicacion.jpg no se pudo precargar.');
-      doc.setFillColor(245,245,245);doc.rect(imgX,imgY,imgW,imgH,'F');
-      doc.setFont('helvetica','normal');doc.setFontSize(8);doc.setTextColor.apply(doc,GR);
-      doc.text('No se pudo cargar la imagen del croquis',imgX+imgW/2,imgY+imgH/2,'center');
-    }
-    doc.setDrawColor.apply(doc,GC);doc.setLineWidth(0.3);doc.rect(imgX,imgY,imgW,imgH,'S');
-    y=imgY+imgH+4;
-    gap(4);
-  }
-
   // ── FOTOS ──
   function seccionFotos(){
     if(!fotosArr||!fotosArr.length)return;
@@ -935,9 +902,6 @@ function generarPDF(returnBlob){
     y+=oh2;gap(3);
   }
 
-  // ── PÁGINA 2: Croquis + Coordenadas + Firmas ──
-  doc.addPage();cabecera();
-  seccionCroquis();
   // Notas de campo antes de firmas
   arboles.forEach(function(a,idx){
     if(a.notas){
