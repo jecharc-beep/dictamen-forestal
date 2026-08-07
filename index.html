@@ -110,7 +110,6 @@ body{font-family:'IBM Plex Sans',sans-serif;background:var(--fo);color:var(--gr)
 .foto-item{position:relative;width:88px;height:88px;border-radius:var(--radius-sm);overflow:hidden;border:2px solid var(--gb);}
 .foto-item img{width:100%;height:100%;object-fit:cover;}
 .foto-del{position:absolute;top:4px;right:4px;background:rgba(0,0,0,.65);color:white;border:none;border-radius:50%;width:26px;height:26px;font-size:13px;cursor:pointer;}
-#map-wrap{height:220px;background:#dce8dc;border-radius:var(--radius);margin-bottom:12px;overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:14px;color:var(--gm);}
 .fab-row{display:flex;gap:8px;margin-bottom:12px;}
 .fab{flex:1;border:2px dashed var(--gb);border-radius:var(--radius-sm);background:white;color:var(--gm);font-size:13px;font-weight:700;min-height:48px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;}
 .fab.add{border-style:solid;border-color:var(--vl);color:var(--v);background:var(--vb);}
@@ -184,24 +183,8 @@ body{font-family:'IBM Plex Sans',sans-serif;background:var(--fo);color:var(--gr)
     <div class="sec-title">✅ Cierre</div>
     <div class="card"><div class="ch vrd"><span class="ch-icon">📊</span>Resumen</div><div class="cb" id="resumen"></div></div>
     <div class="card">
-      <div class="ch gr"><span class="ch-icon">🗺️</span>Georreferenciación</div>
+      <div class="ch gr"><span class="ch-icon">📝</span>Observaciones</div>
       <div class="cb">
-        <div id="map-wrap">🗺️ El mapa carga aquí</div>
-        <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:9px;">
-          <!-- Campo de búsqueda de dirección -->
-          <div style="display:flex;gap:6px;">
-            <input id="addr-input" type="text" placeholder="Buscar dirección o colonia..." style="flex:1;padding:8px 12px;border-radius:8px;border:1px solid var(--gc);font-size:14px;font-family:inherit;" onkeydown="if(event.key==='Enter')buscarDireccion()">
-            <button class="btn bp" onclick="buscarDireccion()" style="padding:8px 14px;font-size:14px;white-space:nowrap;">🔍 Ir</button>
-          </div>
-          <div id="addr-label" style="font-size:12px;color:var(--gm);padding:2px 4px;display:none;"></div>
-          <div style="display:flex;gap:8px;">
-            <button class="btn bp" id="btn-ubicar" onclick="ubicarArbol()" style="flex:1;font-size:14px;">📍 Marcar árbol</button>
-            <button class="btn bs" onclick="usarGPS()" style="flex:1;font-size:14px;">🛰️ GPS</button>
-          </div>
-          <button class="btn bs btn-full" onclick="limpiarMarcadores()" style="font-size:14px;">🗑️ Limpiar</button>
-          <div id="mlabel" style="font-size:13px;color:var(--gm);text-align:center;padding:4px;">Toca "Marcar árbol" y luego el mapa</div>
-        </div>
-        <div id="coords-wrap" style="display:none;margin-bottom:10px;"></div>
         <div class="field"><label>Observaciones generales</label><textarea id="obs" placeholder="Observaciones del dictamen…" oninput="guardarAuto()"></textarea></div>
       </div>
     </div>
@@ -253,7 +236,6 @@ body{font-family:'IBM Plex Sans',sans-serif;background:var(--fo);color:var(--gr)
 var SCRIPT_URL='https://script.google.com/macros/s/AKfycbyDw0hoQgY-yd431MEg3cUkqGjoImu8MQv8ecrpxBoZlj2ocaEz2L4uFpLk-dRMT0MW_w/exec';
 var SKEY='zap_gh_v1';
 var arboles=[],arbolActivo=0,fotosArr=[];
-var map=null,marcadores=[],modoMarcado=false;
 var saveTimer=null;
 
 function g(id){return document.getElementById(id);}
@@ -271,7 +253,7 @@ function goTab(n){
     if(i<n)ps.classList.add('done');else if(i===n)ps.classList.add('active');
   }
   if(n===1){renderLista();renderArbol();}
-  if(n===2){renderResumen();if(!map)iniciarMapa();}
+  if(n===2){renderResumen();}
   window.scrollTo({top:0,behavior:'smooth'});
 }
 
@@ -296,136 +278,7 @@ function cargarGuardado(){
 // ── FINALIZAR ──
 function finalizarDictamen(){
   if(!arboles.length){toast('⚠️ No hay árboles registrados');return;}
-  window._mapaImgB64=null;
-  window._callesNombres=[];
-
-  // ── Extraer nombres de calles del mapa Leaflet que ya está visible ──
-  if(map){
-    try{
-      // Obtener labels visibles del mapa Leaflet (tiles de OpenStreetMap ya renderizados)
-      var callesSet={};
-      // Buscar elementos SVG/canvas del mapa con texto de calles
-      var mapEl=document.getElementById('mapa');
-      if(mapEl){
-        var textos=mapEl.querySelectorAll('text, .leaflet-tile-container');
-        textos.forEach(function(t){
-          var txt=(t.textContent||'').trim();
-          if(txt&&txt.length>2&&txt.length<40)callesSet[txt]=true;
-        });
-      }
-      // Alternativa: usar Nominatim reverse geocoding para cada marcador
-      var promesas=marcadores.slice(0,3).map(function(m){
-        return fetch('https://nominatim.openstreetmap.org/reverse?format=json&lat='+m.lat+'&lon='+m.lng+'&zoom=17&addressdetails=1',
-          {headers:{'Accept':'application/json','Accept-Language':'es'}})
-          .then(function(r){return r.json();})
-          .then(function(d){
-            // Extraer nombre de calle y calles cercanas del resultado
-            var addr=d.address||{};
-            var nombres=[addr.road,addr.pedestrian,addr.footway,addr.cycleway,addr.residential].filter(Boolean);
-            // También extraer display_name partes
-            if(d.display_name){
-              var parts=d.display_name.split(',').map(function(p){return p.trim();});
-              parts.slice(0,2).forEach(function(p){if(p&&p.length>2&&p.length<40)nombres.push(p);});
-            }
-            nombres.forEach(function(n){if(n)callesSet[n]=true;});
-          }).catch(function(){});
-      });
-
-      Promise.all(promesas).then(function(){
-        // Construir array de calles con posiciones interpoladas entre marcadores
-        var callesArr=Object.keys(callesSet).map(function(name,i){
-          // Distribuir nombres a lo largo del recorrido de marcadores
-          var mi=i%Math.max(1,marcadores.length);
-          return{
-            name:name,
-            lat:marcadores[mi]?marcadores[mi].lat+(Math.random()-0.5)*0.0008:0,
-            lng:marcadores[mi]?marcadores[mi].lng+(Math.random()-0.5)*0.0008:0
-          };
-        }).filter(function(cn){return cn.lat&&cn.lng;});
-        window._callesNombres=callesArr;
-        cargarMapaOSM();
-      });
-
-    } catch(e){ cargarMapaOSM(); }
-  } else {
-    // Intentar directamente con Overpass como fallback
-    if(marcadores&&marcadores.length){
-      var lats2=marcadores.map(function(o){return o.lat;});
-      var lngs2=marcadores.map(function(o){return o.lng;});
-      var pad=0.004;
-      var bbox=(Math.min.apply(null,lats2)-pad)+','+(Math.min.apply(null,lngs2)-pad)+','+
-               (Math.max.apply(null,lats2)+pad)+','+(Math.max.apply(null,lngs2)+pad);
-      var query='[out:json][timeout:10];way["highway"]["name"]('+bbox+');out center;';
-      var url='https://overpass-api.de/api/interpreter?data='+encodeURIComponent(query);
-      fetch(url)
-        .then(function(r){return r.json();})
-        .then(function(data){
-          window._callesNombres=(data.elements||[]).map(function(el){
-            return{name:el.tags&&el.tags.name?el.tags.name:'',
-                   lat:el.center?el.center.lat:(el.lat||0),
-                   lng:el.center?el.center.lon:(el.lon||0)};
-          }).filter(function(cn){return cn.name&&cn.lat&&cn.lng;});
-          cargarMapaOSM();
-        })
-        .catch(function(){cargarMapaOSM();});
-      setTimeout(function(){if(!window._callesNombres.length)cargarMapaOSM();},8000);
-    } else { cargarMapaOSM(); }
-  }
-
-  function cargarMapaOSM(){
-    if(!marcadores||!marcadores.length){_enviarDictamen();return;}
-    var lats=marcadores.map(function(o){return o.lat;});
-    var lngs=marcadores.map(function(o){return o.lng;});
-    var cLat=(Math.min.apply(null,lats)+Math.max.apply(null,lats))/2;
-    var cLng=(Math.min.apply(null,lngs)+Math.max.apply(null,lngs))/2;
-    var span=Math.max(Math.max.apply(null,lats)-Math.min.apply(null,lats),
-                      Math.max.apply(null,lngs)-Math.min.apply(null,lngs));
-    var zoom=span>0.015?15:span>0.003?17:19;
-
-    // Capturar tiles OSM directamente en canvas
-    var tileSize=256, cols=3, rows=3;
-    var cv=document.createElement('canvas');
-    cv.width=tileSize*cols; cv.height=tileSize*rows;
-    var ctx=cv.getContext('2d');
-
-    // Convertir lat/lng a tile XY
-    function latLngToTile(lat,lng,z){
-      var n=Math.pow(2,z);
-      var x=Math.floor((lng+180)/360*n);
-      var latR=lat*Math.PI/180;
-      var y=Math.floor((1-Math.log(Math.tan(latR)+1/Math.cos(latR))/Math.PI)/2*n);
-      return{x:x,y:y};
-    }
-    var centerTile=latLngToTile(cLat,cLng,zoom);
-    var offset=Math.floor(cols/2);
-    var loaded=0, total=cols*rows;
-
-    for(var ti=0;ti<cols;ti++){
-      for(var tj=0;tj<rows;tj++){
-        (function(i,j){
-          var tx=centerTile.x+(i-offset);
-          var ty=centerTile.y+(j-offset);
-          var img=new Image();
-          img.crossOrigin='anonymous';
-          img.onload=function(){
-            ctx.drawImage(img,i*tileSize,j*tileSize,tileSize,tileSize);
-            loaded++;
-            if(loaded>=total){
-              try{window._mapaImgB64=cv.toDataURL('image/jpeg',0.88);}catch(e){}
-              _enviarDictamen();
-            }
-          };
-          img.onerror=function(){
-            loaded++;
-            if(loaded>=total){_enviarDictamen();}
-          };
-          img.src='https://tile.openstreetmap.org/'+zoom+'/'+tx+'/'+ty+'.png';
-        })(ti,tj);
-      }
-    }
-    // Timeout seguridad
-    setTimeout(function(){if(loaded<total){_enviarDictamen();}},6000);
-  }
+  _enviarDictamen();
 }
 
 
@@ -608,12 +461,13 @@ function renderResumen(){
 // ══════════════════════════════════════════════════════════
 // VERSION: 2026-07-07-v14-tabla-arboles
 function generarPDF(returnBlob){
-  var IMG_PARQUES='';var IMG_GOBZAP='';
-// Cargar logos desde archivos externos (más eficiente)
+  var IMG_PARQUES='';var IMG_GOBZAP='';var IMG_CROQUIS='';
+// Cargar logos e imagen fija de croquis desde archivos externos (más eficiente)
 (function(){
   function toB64(url,cb){fetch(url).then(function(r){return r.blob();}).then(function(b){var rd=new FileReader();rd.onload=function(e){cb(e.target.result.split(',')[1]);};rd.readAsDataURL(b);}).catch(function(){cb('');});}
   toB64('logo-parques.jpg',function(b){IMG_PARQUES=b;});
   toB64('logo-gobzap.jpg', function(b){IMG_GOBZAP=b;});
+  toB64('croquis-ubicacion.png', function(b){IMG_CROQUIS=b;});
 })();
   
 
@@ -921,95 +775,23 @@ function generarPDF(returnBlob){
     y+=mh2;gap(2);
   }
 
-  // ── CROQUIS ──
+  // ── UBICACIÓN - CROQUIS ──
+  // Sección fija: siempre forma parte del PDF, igual que los encabezados.
   function seccionCroquis(){
-    if(!marcadores||!marcadores.length)return;
-    chkPg(90);
+    chkPg(100);
     doc.setFillColor.apply(doc,TEAL_L);doc.rect(M,y,cW,7,'F');
     doc.setFont('helvetica','bold');doc.setFontSize(8.5);doc.setTextColor.apply(doc,TEAL);
-    doc.text('Mapa / Croquis de georreferenciación',M+4,y+5);y+=9;
+    doc.text('Ubicación - Croquis',M+4,y+5);y+=9;
 
-    var mX=M,mY=y,mW=cW*0.72,mH=65;
-    var lats=marcadores.map(function(o){return o.lat;});
-    var lngs=marcadores.map(function(o){return o.lng;});
-    var minLat=Math.min.apply(null,lats),maxLat=Math.max.apply(null,lats);
-    var minLng=Math.min.apply(null,lngs),maxLng=Math.max.apply(null,lngs);
-    var pad=0.08,dLat=maxLat-minLat||0.0003,dLng=maxLng-minLng||0.0003;
-    minLat-=dLat*pad;maxLat+=dLat*pad;minLng-=dLng*pad;maxLng+=dLng*pad;
-    function toX(lng){return mX+((lng-minLng)/(maxLng-minLng))*mW;}
-    function toY2(lat){return mY+mH-((lat-minLat)/(maxLat-minLat))*mH;}
-
-    if(window._mapaImgB64){
-      try{doc.addImage(window._mapaImgB64,'JPEG',mX,mY,mW,mH);}catch(ex){dibujaFondo();}
-    }else{dibujaFondo();}
-    // Dibujar nombres de calles siempre (sobre imagen OSM o fondo simulado)
-    if(window._callesNombres&&window._callesNombres.length){
-      doc.setFont('helvetica','bold');doc.setFontSize(5.5);
-      window._callesNombres.forEach(function(cn){
-        var cx=toX(cn.lng),cy=toY2(cn.lat);
-        if(cx>mX+5&&cx<mX+mW-5&&cy>mY+5&&cy<mY+mH-5){
-          var tw=doc.getTextWidth(cn.name)+3;
-          doc.setFillColor(255,255,255);doc.rect(cx-tw/2,cy-3.8,tw,5,'F');
-          doc.setTextColor(20,50,100);doc.text(cn.name,cx,cy,'center');
-        }
-      });
-    }
-
-    function dibujaFondo(){
-      doc.setFillColor(240,246,252);doc.rect(mX,mY,mW,mH,'F');
-      doc.setFillColor(210,222,234);
-      var bC=5,bR=4,bW=mW/bC,bH=mH/bR,gp=1.8;
-      for(var bi=0;bi<bC;bi++)for(var bj=0;bj<bR;bj++)
-        doc.rect(mX+bi*bW+gp,mY+bj*bH+gp,bW-gp*2,bH-gp*2,'F');
-      doc.setFillColor(255,255,255);
-      for(var si=1;si<bC;si++)doc.rect(mX+si*bW-gp,mY,gp*2,mH,'F');
-      for(var sj=1;sj<bR;sj++)doc.rect(mX,mY+sj*bH-gp,mW,gp*2,'F');
-      // (nombres de calles se dibujan después, sobre cualquier fondo)
-    }
-    // Sin líneas de conexión — solo marcadores individuales
-    marcadores.forEach(function(o,i){
-      var px=toX(o.lng),py=toY2(o.lat);
-      doc.setFillColor(0,0,0);doc.circle(px+0.3,py+0.3,2.5,'F');
-      doc.setFillColor(45,160,45);doc.setDrawColor(255,255,255);doc.setLineWidth(0.5);
-      doc.circle(px,py,2.5,'FD');
-      doc.setFont('helvetica','bold');doc.setFontSize(4.5);doc.setTextColor(255,255,255);
-      doc.text(String(i+1),px,py+0.8,'center');
-    });
-    doc.setDrawColor.apply(doc,TEAL);doc.setLineWidth(0.6);doc.rect(mX,mY,mW,mH,'S');
-    // Norte
-    doc.setFont('helvetica','bold');doc.setFontSize(9);doc.setTextColor.apply(doc,BLK);
-    doc.text('N',mX+mW-7,mY+8,'center');
-    doc.setLineWidth(0.6);doc.line(mX+mW-7,mY+9,mX+mW-7,mY+15);
-    doc.setFillColor.apply(doc,BLK);
-    doc.triangle(mX+mW-7,mY+9,mX+mW-9.5,mY+13,mX+mW-4.5,mY+13,'F');
-    // Leyenda
-    var legX=mX+mW+3,legW=cW-mW-3;
-    doc.setFillColor(255,255,255);doc.rect(legX,mY,legW,20,'F');
-    doc.setDrawColor.apply(doc,GC);doc.setLineWidth(0.3);doc.rect(legX,mY,legW,20,'S');
-    doc.setFont('helvetica','bold');doc.setFontSize(7);doc.setTextColor.apply(doc,BLK);
-    doc.text('Leyenda',legX+legW/2,mY+6,'center');
-    doc.setFillColor(45,160,45);doc.circle(legX+4,mY+13,2,'F');
-    doc.setFont('helvetica','normal');doc.setFontSize(6.5);
-    doc.text('Árbol',legX+9,mY+13.5);
-    y=mY+mH+3;
-
-    // Tabla coordenadas
-    doc.setFont('helvetica','bold');doc.setFontSize(8);doc.setTextColor.apply(doc,BLK);
-    doc.text('Coordenadas registradas:',M,y+4);y+=7;
-    var cCols=[{t:'# Árbol',x:0,w:24},{t:'Latitud',x:24,w:55},{t:'Longitud',x:79,w:cW-79}];
-    doc.setFillColor.apply(doc,TEAL);
-    cCols.forEach(function(c){doc.rect(M+c.x,y,c.w,7,'F');});
-    doc.setFont('helvetica','bold');doc.setFontSize(7);doc.setTextColor.apply(doc,WH);
-    cCols.forEach(function(c){doc.text(c.t,M+c.x+c.w/2,y+4.8,'center');});y+=7;
-    marcadores.forEach(function(o,i){
-      if(i%2===0){doc.setFillColor.apply(doc,GOLD_L);}else{doc.setFillColor(255,255,255);}
-      cCols.forEach(function(c){doc.rect(M+c.x,y,c.w,7,'F');});
-      doc.setDrawColor.apply(doc,GC);doc.setLineWidth(0.2);
-      cCols.forEach(function(c){doc.rect(M+c.x,y,c.w,7,'S');});
-      doc.setFont('helvetica','normal');doc.setFontSize(7);doc.setTextColor.apply(doc,BLK);
-      var row=['Árbol #'+(i+1),o.lat.toFixed(6),o.lng.toFixed(6)];
-      cCols.forEach(function(c,ci){doc.text(row[ci],M+c.x+c.w/2,y+4.8,'center');});y+=7;
-    });
+    var imgW=cW,imgRatio=309/366,imgH=imgW*imgRatio;
+    var maxH=150;
+    if(imgH>maxH){imgH=maxH;imgW=imgH/imgRatio;}
+    var imgX=M+(cW-imgW)/2,imgY=y;
+    try{
+      doc.addImage('data:image/png;base64,'+IMG_CROQUIS,'PNG',imgX,imgY,imgW,imgH);
+    }catch(e){}
+    doc.setDrawColor.apply(doc,GC);doc.setLineWidth(0.3);doc.rect(imgX,imgY,imgW,imgH,'S');
+    y=imgY+imgH+4;
     gap(4);
   }
 
@@ -1149,167 +931,6 @@ function generarPDF(returnBlob){
   }
 }
 
-// ══════════════════════════════════════════
-// MAPA
-// ══════════════════════════════════════════
-function iniciarMapa(){
-  var mw=g('map-wrap');if(!mw||map)return;
-  mw.innerHTML='<div id="lmap" style="width:100%;height:100%;"></div>';
-  var js=document.createElement('script');js.src='https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js';
-  js.onload=function(){
-    var lk=document.createElement('link');lk.rel='stylesheet';lk.href='https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css';
-    document.head.appendChild(lk);
-    setTimeout(function(){
-      map=L.map('lmap',{zoomControl:true,maxZoom:20}).setView([20.7214,-103.4067],18);
-      // Crosshair en centro del mapa como referencia
-      var crossEl=document.createElement('div');
-      crossEl.style.cssText='position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);pointer-events:none;z-index:1000;font-size:24px;line-height:1;';
-      crossEl.textContent='＋';
-      crossEl.id='map-cross';
-      document.getElementById('lmap').appendChild(crossEl);
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OSM',maxZoom:19,crossOrigin:true}).addTo(map);
-      map.on('click',function(e){
-        if(!modoMarcado)return;
-        addMarker(e.latlng.lat,e.latlng.lng);
-        modoMarcado=false;
-        g('btn-ubicar').textContent='📍 Marcar árbol';
-        g('mlabel').textContent='✅ Árbol marcado';
-      });
-    },300);
-  };
-  document.head.appendChild(js);
-}
-function buscarDireccion(){
-  var q=(g('addr-input')?g('addr-input').value:'').trim();
-  if(!q){toast('Escribe una dirección');return;}
-  var lbl=g('addr-label');
-  if(lbl){lbl.style.display='block';lbl.textContent='🔍 Buscando...';}
-  // Nominatim con prioridad a Zapopan
-  var url='https://nominatim.openstreetmap.org/search?format=json&limit=1&addressdetails=1&q='+
-    encodeURIComponent(q+', Zapopan, Jalisco, México');
-  fetch(url,{headers:{'Accept-Language':'es','User-Agent':'DictamenForestal/1.0'}})
-    .then(function(r){return r.json();})
-    .then(function(data){
-      if(!data||!data.length){
-        // Intentar sin restricción de ciudad
-        return fetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&q='+encodeURIComponent(q),
-          {headers:{'Accept-Language':'es'}})
-          .then(function(r2){return r2.json();});
-      }
-      return data;
-    })
-    .then(function(data){
-      if(!data||!data.length){
-        if(lbl)lbl.textContent='❌ Dirección no encontrada';
-        return;
-      }
-      var r=data[0];
-      var lat=parseFloat(r.lat),lng=parseFloat(r.lon);
-      if(map){
-        map.setView([lat,lng],19);
-        // Mostrar resultado
-        var nombre=r.display_name.split(',').slice(0,3).join(', ');
-        if(lbl){lbl.textContent='📍 '+nombre;lbl.style.color='var(--v)';}
-        toast('✅ Mapa centrado en: '+nombre.split(',')[0]);
-      }
-    })
-    .catch(function(){
-      if(lbl)lbl.textContent='❌ Error al buscar. Verifica tu conexión.';
-    });
-}
-function ubicarArbol(){if(!map)return;modoMarcado=!modoMarcado;g('btn-ubicar').textContent=modoMarcado?'✋ Cancelar':'📍 Marcar árbol';g('mlabel').textContent=modoMarcado?'Toca el mapa…':'Cancelado';}
-function usarGPS(){
-  if(!navigator.geolocation){toast('GPS no disponible');return;}
-  var lbl=g('mlabel');
-  var btnGPS=document.querySelector('.btn.bs[onclick="usarGPS()"]');
-  if(btnGPS)btnGPS.disabled=true;
-
-  // Cancelar si ya hay una sesión activa
-  if(window._gpsWatch){
-    navigator.geolocation.clearWatch(window._gpsWatch);
-    window._gpsWatch=null;
-    if(btnGPS)btnGPS.disabled=false;
-    lbl.textContent='GPS cancelado';
-    return;
-  }
-
-  var UMBRAL_M=5;       // precisión mínima en metros para aceptar
-  var TIMEOUT_S=30;     // segundos máximos esperando
-  var mejorAcc=Infinity;
-  var mejorLat=null, mejorLng=null;
-  var t0=Date.now();
-
-  lbl.textContent='📡 Buscando señal GPS…';
-  if(btnGPS)btnGPS.textContent='✋ Cancelar GPS';
-
-  window._gpsWatch=navigator.geolocation.watchPosition(
-    function(p){
-      var la=p.coords.latitude, lo=p.coords.longitude, acc=p.coords.accuracy;
-      var elapsed=Math.round((Date.now()-t0)/1000);
-
-      // Actualizar mejor lectura
-      if(acc<mejorAcc){mejorAcc=acc;mejorLat=la;mejorLng=lo;}
-
-      // Mostrar círculo en mapa
-      if(map){
-        map.setView([la,lo],19);
-        if(window._gpsCircle)window._gpsCircle.remove();
-        window._gpsCircle=L.circle([la,lo],{
-          radius:acc,color:'#F47920',fillOpacity:0.12,weight:1.5
-        }).addTo(map);
-      }
-
-      // Actualizar label con precisión actual
-      var barras=acc<=5?'████':acc<=10?'███░':acc<=20?'██░░':'█░░░';
-      lbl.textContent='📡 Precisión: ±'+Math.round(acc)+'m '+barras+' ('+elapsed+'s)';
-      lbl.style.color=acc<=UMBRAL_M?'var(--v)':'var(--gm)';
-
-      // Si alcanzó el umbral: marcar automáticamente
-      if(acc<=UMBRAL_M){
-        _confirmarGPS(la,lo,acc);
-      }
-    },
-    function(err){
-      _cancelarGPS();
-      lbl.textContent='❌ GPS: '+err.message;
-    },
-    {enableHighAccuracy:true, timeout:20000, maximumAge:0}
-  );
-
-  // Timeout: si no alcanza el umbral en TIMEOUT_S, usar la mejor lectura disponible
-  window._gpsTimeout=setTimeout(function(){
-    if(window._gpsWatch){
-      if(mejorLat!==null){
-        lbl.textContent='⚠️ Usando mejor señal disponible: ±'+Math.round(mejorAcc)+'m';
-        _confirmarGPS(mejorLat,mejorLng,mejorAcc);
-      } else {
-        _cancelarGPS();
-        lbl.textContent='❌ No se pudo obtener señal GPS';
-      }
-    }
-  }, TIMEOUT_S*1000);
-
-  function _confirmarGPS(la,lo,acc){
-    _cancelarGPS();
-    addMarker(la,lo);
-    if(window._gpsCircle){
-      // Cambiar círculo a verde al confirmar
-      window._gpsCircle.setStyle({color:'#2D6A2D',fillColor:'#2D6A2D'});
-    }
-    lbl.textContent='✅ Marcado: ±'+Math.round(acc)+'m de precisión';
-    lbl.style.color='var(--v)';
-    if(btnGPS)btnGPS.textContent='🛰️ GPS';
-  }
-
-  function _cancelarGPS(){
-    if(window._gpsWatch){navigator.geolocation.clearWatch(window._gpsWatch);window._gpsWatch=null;}
-    if(window._gpsTimeout){clearTimeout(window._gpsTimeout);window._gpsTimeout=null;}
-    if(btnGPS){btnGPS.disabled=false;btnGPS.textContent='🛰️ GPS';}
-  }
-}
-function addMarker(lat,lng){if(!map)return;var n=marcadores.length+1;var ic=L.divIcon({className:'',html:'<div style="background:#2D6A2D;color:white;border-radius:50%;width:20px;height:20px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;border:2px solid white;box-shadow:0 1px 4px rgba(0,0,0,.4)">'+n+'</div>',iconSize:[20,20],iconAnchor:[10,10]});var m=L.marker([lat,lng],{icon:ic}).addTo(map).bindPopup('<b>Árbol #'+n+'</b><br>'+lat.toFixed(5)+', '+lng.toFixed(5));marcadores.push({m:m,lat:lat,lng:lng});updCoords();guardarAuto();}
-function limpiarMarcadores(){marcadores.forEach(function(o){if(map)map.removeLayer(o.m);});marcadores=[];updCoords();toast('🗑 Marcadores eliminados');}
-function updCoords(){var c=g('coords-wrap');if(!c)return;if(!marcadores.length){c.style.display='none';return;}c.style.display='block';c.innerHTML='<div style="background:var(--vb);border:2px solid var(--vl);border-radius:var(--radius-sm);padding:10px;"><p style="font-size:12px;font-weight:700;color:var(--v);margin-bottom:6px;">📍 '+marcadores.length+' árbol(es) marcado(s)</p>'+marcadores.map(function(o,i){return'<div style="font-size:12px;color:var(--gm);margin-bottom:3px;">🌳 #'+(i+1)+' · '+o.lat.toFixed(5)+', '+o.lng.toFixed(5)+'</div>';}).join('')+'</div>';}
 function syncSup(){var v=g('sup')?g('sup').value:'';var f=g('firma-sup');if(f)f.textContent=v;}
 function nuevoDictamen(){
   if(!confirm('¿Iniciar un nuevo dictamen? Se borrarán todos los datos actuales.'))return;
@@ -1319,9 +940,6 @@ function nuevoDictamen(){
   arboles=[];
   arbolActivo=0;
   fotosArr=[];
-  marcadores.forEach(function(m){if(m.m)m.m.remove();});
-  marcadores=[];
-  if(window._gpsCircle){window._gpsCircle.remove();window._gpsCircle=null;}
   // Limpiar campos de datos generales
   ['folio','sup','prog','obs'].forEach(function(id){if(g(id))g(id).value='';});
   // Nueva fecha de hoy
@@ -1340,7 +958,6 @@ function nuevoDictamen(){
   goTab(0);
   renderLista();
   renderArbol();
-  updCoords();
   setSyncBadge('');
   toast('✅ Nuevo dictamen iniciado');
 }
