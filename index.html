@@ -340,6 +340,7 @@ function _generarYEnviar(){
       var p=JSON.parse(JSON.stringify(a));
       p.tipo='dictamen';p.folio=folio;p.fecha=fecha;p.hora=hora;
       p.supervisor=supervisor;p.programa=programa;p.obs=obs;
+      p.fotos_count=fotosArr.length;
       return fetch(SCRIPT_URL,opts(p)).catch(function(){return{ok:false};});
     });
     Promise.all([p1].concat(p2))
