@@ -1,3 +1,4 @@
+
 // ═══════════════════════════════════════════════════════════
 //  ARBOLADO ZAPOPAN — Apps Script v3
 //  Maneja: PDF a Drive + Dictamen + Reinspección + Búsqueda por folio
@@ -149,13 +150,24 @@ function guardarReinspeccion(datos) {
 function guardarPDF(datos) {
   var nombre  = datos.nombre;
   var b64     = datos.data;
-  var carpeta = obtenerCarpeta();
   var bytes   = Utilities.base64Decode(b64);
   var blob    = Utilities.newBlob(bytes, MimeType.PDF, nombre);
+
+  // Obtener carpeta directamente por ID
+  var CARPETA_ID = '1uHhI7XkEt_G7nsHkBeJ7W8wCdP10BGj3';
+  var carpeta = DriveApp.getFolderById(CARPETA_ID);
+
+  // Renombrar versiones anteriores del mismo archivo (sin borrar)
   var existentes = carpeta.getFilesByName(nombre);
-  while (existentes.hasNext()) existentes.next().setTrashed(true);
+  var timestamp = Utilities.formatDate(new Date(), 'America/Mexico_City', 'yyyyMMdd_HHmm');
+  while (existentes.hasNext()) {
+    var viejo = existentes.next();
+    viejo.setName(nombre.replace('.pdf', '_anterior_' + timestamp + '.pdf'));
+  }
+
+  // Crear nuevo archivo directamente en la carpeta
   var archivo = carpeta.createFile(blob);
-  Logger.log("PDF guardado: " + nombre);
+  Logger.log("PDF guardado en Arbolado_Zapopan: " + nombre);
   return archivo;
 }
 
@@ -173,7 +185,9 @@ function actualizarSheets(datos) {
     "Defectos raíz","Defectos fuste","Defectos copa","Plagas/enfermedades",
     "Afectaciones / Diana","Sitio","Requerimientos operativos",
     "Poda (Art.)","Derribo (Art.)","NAE Derribo","NAE Trasplante",
-    "Clasificación riesgo","Puntaje","Notas campo","Notas resultado",
+    "Clasificación riesgo","Puntaje",
+    "Tipo de poda","% Poda","Fotos",
+    "Notas campo","Notas resultado",
     "Observaciones generales","Última actualización"
   ];
 
@@ -185,8 +199,19 @@ function actualizarSheets(datos) {
     hoja.setRowHeight(1, 24);
   }
 
+  // Formato de fecha dd/mm/aaaa
+  var fechaFmt = "";
+  if (datos.fecha) {
+    var partes = String(datos.fecha).split("-");
+    if (partes.length === 3) {
+      fechaFmt = partes[2] + "/" + partes[1] + "/" + partes[0];
+    } else {
+      fechaFmt = datos.fecha;
+    }
+  }
+
   var fila = [
-    datos.folio||"", datos.fecha||"", datos.hora||"", datos.supervisor||"", datos.programa||"",
+    datos.folio||"", fechaFmt, datos.hora||"", datos.supervisor||"", datos.programa||"",
     datos.nombre||"", datos.especie||"", datos.cientifico||"",
     datos.altura||"", datos.dap||"", datos.fase||"", datos.estado||"",
     datos.ciclo||"", datos.ram||"",
@@ -196,9 +221,12 @@ function actualizarSheets(datos) {
     (datos.ch_req||[]).join(" | "), (datos.ch_poda||[]).join(" | "),
     (datos.ch_derribo||[]).join(" | "), (datos.ch_nae_der||[]).join(" | "),
     (datos.ch_nae_tras||[]).join(" | "),
-    datos.riesgo==="alto"?"ALTO":"No Aplica", datos._pts||0,
+    datos.riesgo==="alto"?"ALTO":datos.riesgo==="medio"?"MEDIO":"No Aplica",
+    datos._pts||0,
+    datos.tipo_poda||"", datos.pct_poda||"",
+    datos.num_fotos||0,
     datos.notas||"", datos.notas_r||"", datos.obs||"",
-    new Date().toLocaleString("es-MX")
+    Utilities.formatDate(new Date(), "America/Mexico_City", "dd/MM/yyyy HH:mm")
   ];
 
   var clave = (datos.folio||"") + "|" + (datos.nombre||"");
@@ -221,17 +249,24 @@ function actualizarSheets(datos) {
 }
 
 function colorearFila(hoja, numFila, riesgo) {
-  var color = riesgo === "alto" ? "#FDEAEA" : "#F9FFF9";
-  hoja.getRange(numFila, 1, 1, 31).setBackground(color);
+  var color = riesgo === "alto" ? "#FDEAEA" : riesgo === "medio" ? "#FFF9E6" : "#F9FFF9";
+  hoja.getRange(numFila, 1, 1, 34).setBackground(color);
 }
 
 // ═══════════════════════════════════════════════════════════
 //  UTILIDADES
 // ═══════════════════════════════════════════════════════════
 function obtenerCarpeta() {
-  var iter = DriveApp.getFoldersByName(CONFIG.carpeta);
-  if (iter.hasNext()) return iter.next();
-  return DriveApp.createFolder(CONFIG.carpeta);
+  // ID directo de la carpeta Arbolado_Zapopan — evita problemas de búsqueda por nombre
+  var CARPETA_ID = '1uHhI7XkEt_G7nsHkBeJ7W8wCdP10BGj3';
+  try {
+    return DriveApp.getFolderById(CARPETA_ID);
+  } catch(e) {
+    // Si falla, buscar por nombre como respaldo
+    var iter = DriveApp.getFoldersByName(CONFIG.carpeta);
+    if (iter.hasNext()) return iter.next();
+    return DriveApp.createFolder(CONFIG.carpeta);
+  }
 }
 
 function obtenerSheet() {
