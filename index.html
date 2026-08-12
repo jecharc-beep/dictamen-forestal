@@ -864,15 +864,25 @@ function generarPDF(returnBlob){
         var sMT2=doc.splitTextToSize(manejoTxt2,RW-4);
         var tipoPodaTxt=a.tipo_poda||'—';
         var pctTxt=a.pct_poda?a.pct_poda+'%':'—';
-        // Calcular líneas de tipo poda para ajustar altura
         var tW=RW*0.78, pW=RW-tW;
+        // Calcular fuente y líneas ANTES de definir h
         var fsTip=autoFsLines(tipoPodaTxt,tW-12,4,fsManejo,4.5);
         doc.setFont('helvetica','normal');doc.setFontSize(fsTip);
         var sTip=doc.splitTextToSize(tipoPodaTxt,tW-12);
-        var hMan=Math.max(h*0.40,tH*1.1);
-        var hTip=Math.max(h-hMan, sTip.length*fsTip*0.65+5);
-        // Recalcular h total si tipo poda necesita más espacio
-        var hTotal=hMan+hTip;
+        var hMan=Math.max(tH*1.1,sMT2.length*fsManejo*0.65+5);
+        var hTip=Math.max(tH*1.0,sTip.length*fsTip*0.65+5);
+        // h debe ser al menos hMan+hTip para que quepa todo
+        var hNeeded=hMan+hTip;
+        if(h<hNeeded)h=hNeeded;
+        // Redibujar celda izquierda (Sistema radicular) con h actualizado
+        doc.setFillColor(255,255,255);
+        doc.rect(M,y,LW,h,'F');
+        doc.setDrawColor.apply(doc,GC);doc.setLineWidth(0.2);doc.rect(M,y,LW,h,'S');
+        doc.setFont('helvetica','bold');doc.setFontSize(fsEval);doc.setTextColor.apply(doc,TEAL);
+        doc.text('Sistema radicular',M+2,y+4);
+        doc.setFont('helvetica','normal');doc.setFontSize(fsEval);doc.setTextColor.apply(doc,BLK);
+        var sRaiz=doc.splitTextToSize(a.ch_raiz&&a.ch_raiz.length?a.ch_raiz.join('; ')+(a.notas_raiz?' | '+a.notas_raiz:''):'Sin hallazgos',LW-18);
+        sRaiz.forEach(function(l,li){doc.text(l,M+17,y+4+li*fsEval*0.65);});
         // Manejo — amarillo
         doc.setFillColor.apply(doc,GOLD_L);doc.rect(M+LW,y,RW,hMan,'F');
         doc.setDrawColor.apply(doc,GC);doc.rect(M+LW,y,RW,hMan,'S');
@@ -880,15 +890,15 @@ function generarPDF(returnBlob){
         doc.text('Manejo:',M+LW+2,y+4);
         doc.setFont('helvetica','bold');doc.setFontSize(fsManejo);doc.setTextColor.apply(doc,BLK);
         sMT2.forEach(function(l,li){doc.text(l,M+LW+18,y+4+li*fsManejo*0.65);});
-        // Tipo poda (izq) + % (der) — amarillo con altura dinámica
+        // Tipo poda (izq) + % (der) — amarillo
         doc.setFillColor.apply(doc,GOLD_L);doc.rect(M+LW,y+hMan,tW,hTip,'F');
         doc.setFillColor.apply(doc,GOLD_L);doc.rect(M+LW+tW,y+hMan,pW,hTip,'F');
         doc.setDrawColor.apply(doc,GC);
         doc.rect(M+LW,y+hMan,tW,hTip,'S');doc.rect(M+LW+tW,y+hMan,pW,hTip,'S');
         doc.setFont('helvetica','bold');doc.setFontSize(fsManejo);doc.setTextColor.apply(doc,TEAL);
         doc.text('Tipo poda:',M+LW+2,y+hMan+4);
-        doc.setFont('helvetica','normal');doc.setFontSize(fsManejo);doc.setTextColor.apply(doc,BLK);
-        sTip.forEach(function(l,li){doc.text(l,M+LW+18,y+hMan+4+li*fsManejo*0.65);});
+        doc.setFont('helvetica','normal');doc.setFontSize(fsTip);doc.setTextColor.apply(doc,BLK);
+        sTip.forEach(function(l,li){doc.text(l,M+LW+18,y+hMan+4+li*fsTip*0.65);});
         doc.setFont('helvetica','bold');doc.setFontSize(fsManejo);doc.setTextColor.apply(doc,TEAL);
         doc.text('%:',M+LW+tW+1.5,y+hMan+4);
         doc.setFont('helvetica','normal');doc.setFontSize(fsManejo);doc.setTextColor.apply(doc,BLK);
