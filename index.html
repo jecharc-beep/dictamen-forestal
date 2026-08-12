@@ -865,10 +865,10 @@ function generarPDF(returnBlob){
         var tipoPodaTxt=a.tipo_poda||'—';
         var pctTxt=a.pct_poda?a.pct_poda+'%':'—';
         // Calcular líneas de tipo poda para ajustar altura
-        var tW=RW*0.65, pW=RW-tW;
-        var fsTip=autoFsLines(tipoPodaTxt,tW-20,3,fsManejo,4.5);
+        var tW=RW*0.78, pW=RW-tW;
+        var fsTip=autoFsLines(tipoPodaTxt,tW-12,4,fsManejo,4.5);
         doc.setFont('helvetica','normal');doc.setFontSize(fsTip);
-        var sTip=doc.splitTextToSize(tipoPodaTxt,tW-20);
+        var sTip=doc.splitTextToSize(tipoPodaTxt,tW-12);
         var hMan=Math.max(h*0.40,tH*1.1);
         var hTip=Math.max(h-hMan, sTip.length*fsTip*0.65+5);
         // Recalcular h total si tipo poda necesita más espacio
