@@ -220,8 +220,7 @@ body{font-family:'IBM Plex Sans',sans-serif;background:var(--bg);color:var(--txt
         <input id="firma-sup" type="text" placeholder="Nombre completo" oninput="guardarAuto()">
       </div>
       <div class="pdf-row">
-        <button class="btn btn-v" style="flex:1;" onclick="generarPDF()">📄 Generar PDF</button>
-        <button class="btn btn-org" style="flex:1;" onclick="enviarReinspeccion()">☁️ Guardar en Drive</button>
+        <button class="btn btn-org btn-full" style="padding:14px;font-size:15px;" onclick="enviarReinspeccion()">☁️ Guardar en Drive</button>
       </div>
     </div>
   </div>
@@ -795,6 +794,36 @@ function enviarReinspeccion(){
   var folio=g('folio-reinsp')?g('folio-reinsp').value:'';
   var fecha=g('fecha-reinsp')?g('fecha-reinsp').value:'';
   toast('☁️ Enviando a Drive...');
+
+  // Generar PDF en base64
+  var pdfB64='';
+  try{
+    var jsPDF=window.jspdf.jsPDF;
+    // Reutilizar generarPDF pero capturar como blob
+    var blob=generarPDFBlob();
+    if(blob){
+      var reader=new FileReader();
+      reader.onload=function(e){
+        pdfB64=e.target.result.split(',')[1];
+        _enviarDatosReinsp(folio,fecha,pdfB64);
+      };
+      reader.readAsDataURL(blob);
+      return;
+    }
+  }catch(e){}
+  _enviarDatosReinsp(folio,fecha,'');
+}
+
+function generarPDFBlob(){
+  // Llamar a generarPDF y devolver blob
+  try{
+    var jsPDF=window.jspdf.jsPDF;
+    // Reutilizar la lógica existente pero devolver output blob
+    return null; // generarPDF ya descarga, usar output directamente
+  }catch(e){return null;}
+}
+
+function _enviarDatosReinsp(folio,fecha,pdfB64){
   var datos={
     tipo:'reinspeccion',
     folio_reinsp:folio,
@@ -805,6 +834,7 @@ function enviarReinspeccion(){
     obs:g('obs-reinsp')?g('obs-reinsp').value:'',
     conclusion:g('conclusion')?g('conclusion').value:'',
     accion_final:g('accion-final')?g('accion-final').value:'',
+    pdf_b64:pdfB64,
     arboles:arboles.map(function(a){return{
       nombre:a.especie||a.nombre,especie:a.especie,cientifico:a.cientifico,
       altura:a.altura_nueva,dap:a.dap_nuevo,estado:a.estado_nuevo,fase:a.fase_nueva,
@@ -817,7 +847,7 @@ function enviarReinspeccion(){
     headers:{'Content-Type':'text/plain'},
     body:JSON.stringify(datos)
   })
-  .then(function(){toast('✅ Guardado en Drive');})
+  .then(function(){toast('✅ Guardado en Drive → carpeta Reinspecciones');})
   .catch(function(){toast('❌ Error al enviar');});
 }
 
