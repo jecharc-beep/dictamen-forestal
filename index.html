@@ -879,7 +879,8 @@ function generarPDF(returnBlob){
         doc.rect(M,y,LW,h,'F');
         doc.setDrawColor.apply(doc,GC);doc.setLineWidth(0.2);doc.rect(M,y,LW,h,'S');
         doc.setFont('helvetica','bold');doc.setFontSize(fsEval);doc.setTextColor.apply(doc,TEAL);
-        doc.text('Sistema radicular',M+2,y+4);
+        var sLraiz=doc.splitTextToSize('Sistema radicular',14);
+        sLraiz.forEach(function(l,li){doc.text(l,M+2,y+4+li*fsEval*0.65);});
         doc.setFont('helvetica','normal');doc.setFontSize(fsEval);doc.setTextColor.apply(doc,BLK);
         var sRaiz=doc.splitTextToSize(a.ch_raiz&&a.ch_raiz.length?a.ch_raiz.join('; ')+(a.notas_raiz?' | '+a.notas_raiz:''):'Sin hallazgos',LW-18);
         sRaiz.forEach(function(l,li){doc.text(l,M+17,y+4+li*fsEval*0.65);});
