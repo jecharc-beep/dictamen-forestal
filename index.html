@@ -1085,21 +1085,43 @@ function generarPDF(returnBlob){
     doc.setFillColor.apply(doc,TEAL_L);doc.rect(M,y,cW,7,'F');
     doc.setFont('helvetica','bold');doc.setFontSize(8.5);doc.setTextColor.apply(doc,TEAL);
     doc.text('Registro fotográfico',M+4,y+5);y+=9;
-    var fW=(cW-8)/3,fH=fW*0.75;
+
+    // 2 columnas — 4 fotos por página (2 filas x 2 cols)
+    var gap2=6;
+    var fW=(cW-gap2)/2;
+    // Altura disponible: página - encabezado(~52mm) - título(9mm) - margen(12mm)
+    var altDisp=doc.internal.pageSize.height-y-12;
+    // 2 filas con etiqueta (5mm) + foto + pie (5mm) + separación (4mm)
+    var fH=(altDisp-2*(5+5+4))/2;
+    fH=Math.min(fH,fW*0.80); // máximo proporción 4:5
+
     fotosArr.forEach(function(fs,fi){
-      var col=fi%3;
-      if(col===0&&fi>0){y+=fH+12;}
-      if(fi===0||col===0)chkPg(fH+14);
-      var fx=M+col*(fW+4),fy=y;
-      doc.setFont('helvetica','bold');doc.setFontSize(7);doc.setTextColor.apply(doc,TEAL);
+      var col=fi%2;
+      if(fi>0&&col===0){
+        // Nueva fila
+        y+=fH+14;
+        // Si no cabe en la misma página, nueva página
+        if(y+fH+14>doc.internal.pageSize.height-12){
+          doc.addPage();cabecera();
+          doc.setFillColor.apply(doc,TEAL_L);doc.rect(M,y,cW,7,'F');
+          doc.setFont('helvetica','bold');doc.setFontSize(8.5);doc.setTextColor.apply(doc,TEAL);
+          doc.text('Registro fotográfico (cont.)',M+4,y+5);y+=9;
+        }
+      }
+      var fx=M+col*(fW+gap2);
+      var fy=y;
+      // Número de foto
+      doc.setFont('helvetica','bold');doc.setFontSize(8);doc.setTextColor.apply(doc,TEAL);
       doc.text('Foto '+(fi+1),fx,fy-1.5);
+      // Marco y foto
       doc.setFillColor.apply(doc,GOLD_L);doc.rect(fx,fy,fW,fH,'F');
       doc.setDrawColor.apply(doc,GC);doc.setLineWidth(0.3);doc.rect(fx,fy,fW,fH,'S');
       try{doc.addImage(fs,'JPEG',fx,fy,fW,fH,'','FAST');}catch(e){}
-      doc.setFont('helvetica','normal');doc.setFontSize(6);doc.setTextColor.apply(doc,GR);
+      // Pie
+      doc.setFont('helvetica','normal');doc.setFontSize(7);doc.setTextColor.apply(doc,GR);
       doc.text('Condición del árbol.',fx,fy+fH+4);
     });
-    y+=fH+12;gap(3);
+    y+=fH+14;gap(3);
   }
 
   // ── FIRMAS ──
