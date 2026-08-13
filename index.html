@@ -468,7 +468,16 @@ function _enviarDictamen(){
 }
 
 function nuevoArbol(n){return{id:Date.now()+'_'+n,nombre:'Árbol '+n,especie:'',cientifico:'',altura:'',dap:'',fase:null,estado:null,ciclo:null,ram:null,ch_raiz:[],ch_fuste:[],ch_copa:[],ch_plagas:[],ch_diana:[],sitio:null,sitio_otro:'',pct_poda:'',tipo_poda:'',ch_req:[],ch_poda:[],ch_derribo:[],ch_nae_tras:[],ch_nae_der:[],compensacion:null,riesgo:null,notas:'',notas_r:'',notas_raiz:'',notas_fuste:'',notas_copa:'',_pts:0};}
-function calcPts(a){var p=(a.ch_raiz||[]).length+(a.ch_fuste||[]).length+(a.ch_copa||[]).length+(a.ch_diana||[]).length;a._pts=p;if(p<=5)a.riesgo='bajo';else if(p<=16)a.riesgo='medio';else a.riesgo='alto';}
+function calcPts(a){
+  var p=(a.ch_raiz||[]).length+(a.ch_fuste||[]).length+(a.ch_copa||[]).length+(a.ch_diana||[]).length;
+  a._pts=p;
+  // Si hay presencia de hongos fitopatógenos → riesgo alto automático
+  var tieneHongos=(a.ch_fuste||[]).some(function(v){return v.indexOf('fitopatógenos')>=0||v.indexOf('fitopat')>=0;});
+  if(tieneHongos){a.riesgo='alto';}
+  else if(p<=5){a.riesgo='bajo';}
+  else if(p<=16){a.riesgo='medio';}
+  else{a.riesgo='alto';}
+}
 function getProg(a){var d=0;if(a.especie)d++;if(a.estado)d++;if(a.ch_raiz.length||a.ch_fuste.length)d++;if(a.ch_copa.length||a.ch_plagas.length)d++;if(a.sitio||a.ch_diana.length)d++;if(a.riesgo)d++;return{done:d,total:6};}
 function getBadge(a){if(!a.riesgo)return['bvac','—'];if(a.riesgo==='alto')return['balt','🔴 Alto'];if(a.riesgo==='medio')return['bmed','🟡 Medio'];return['bok','⚪ OK'];}
 
@@ -512,7 +521,7 @@ function buildArbol(id){
   ['Monopódico','Dicotómico','Policotómico'].forEach(function(v){h+=excl(a,'ram',v,v);});
   h+='</div></div></div>';
   h+=dCard(a,'ch_copa','🌿 Copa','vrd',[['w','Copa asimétrica'],['d','Rama desgajada/colgante'],['d','Horquillas incluidas'],['w','Copa excesivamente densa'],['d','Muerte regresiva'],['w','Presencia de planta parásita'],['d','Pudrición en ramas'],['w','Desmoche']]);
-  h+=dCard(a,'ch_fuste','🪵 Fuste','vrd',[['d','Grietas profundas'],['d','Cavidad/hueco'],['d','Pudrición visible'],['w','Exudados anómalos'],['d','Inclinación >30°'],['w','Daño mecánico (tejido vivo expuesto)'],['w','Corteza incluida'],['d','Presencia de hongos (cuerpos fructíferos)']]);
+  h+=dCard(a,'ch_fuste','🪵 Fuste','vrd',[['d','Grietas profundas'],['d','Cavidad/hueco'],['d','Pudrición visible'],['w','Exudados anómalos'],['d','Inclinación >30°'],['w','Daño mecánico (tejido vivo expuesto)'],['w','Corteza incluida'],['d','Presencia de hongos fitopatógenos (cuerpos fructíferos)']]);
   h+=dCard(a,'ch_raiz','🌱 Sistema Radicular','vrd',[['w','Raíces levantando banqueta/pavimento'],['d','Raíces cortadas'],['w','Espacio radicular reducido']]);
   h+='<div class="card"><div class="ch az"><span class="ch-icon">🎯</span>Entorno y Diana</div><div class="cb">';
   // ── Sitio (antes de afectaciones) ──
