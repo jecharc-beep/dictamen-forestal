@@ -1156,16 +1156,21 @@ function generarPDF(returnBlob){
 
   // Observaciones generales después de todos los árboles
   if(obs){
-    chkPg(14);
+    // Calcular altura necesaria antes de dibujar
+    doc.setFont('helvetica','normal');doc.setFontSize(8);
+    var obsL2=doc.splitTextToSize(obs,cW-6);
+    var oh2=Math.max(10,obsL2.length*4.8+5);
+    // Si no cabe en la página actual, saltar a nueva página
+    if(y+oh2+14>doc.internal.pageSize.height-12){doc.addPage();cabecera();}
+    // Header
     doc.setFillColor.apply(doc,TEAL_L);doc.rect(M,y,cW,7,'F');
     doc.setFont('helvetica','bold');doc.setFontSize(8);doc.setTextColor.apply(doc,TEAL);
     doc.text('Observaciones generales',M+4,y+5);y+=7;
-    var obsL2=doc.splitTextToSize(obs,cW-4);
-    var oh2=Math.max(8,obsL2.length*4.5+4);
+    // Contenido con altura dinámica
     doc.setFillColor(255,255,255);doc.rect(M,y,cW,oh2,'F');
     doc.setDrawColor.apply(doc,GC);doc.setLineWidth(0.2);doc.rect(M,y,cW,oh2,'S');
     doc.setFont('helvetica','normal');doc.setFontSize(8);doc.setTextColor.apply(doc,BLK);
-    obsL2.forEach(function(l,i){doc.text(l,M+3,y+4.5+i*4.5);});
+    obsL2.forEach(function(l,i){doc.text(l,M+3,y+4.8+i*4.8);});
     y+=oh2;gap(3);
   }
 
