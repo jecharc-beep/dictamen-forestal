@@ -554,12 +554,12 @@ function buildArbol(id){
   });
   h+='</div><div class="sep"></div>';
   h+='<p class="stitle">✂️ Poda Art. 33 — Reglamento Zapopan</p><div style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px;">';
-  h+=acord('p1','Fracción I — Inminente peligro',bChks(a,'ch_poda',[['w','a) Interferencia con líneas de conducción aérea'],['w','b) Ramas bajas que obstruyen el paso peatonal o vehicular'],['w','c) Impedimento a luminarias y señales de tráfico'],['d','d) Ramas con riesgo de desgajarse'],['d','e) Árboles de porte alto con riesgo de desplome'],['w','f) Ubicados en sitios inadecuados o que dañen la vía pública']]));
-  h+=acord('p2','Fracción II — Mantenimiento de la salud del árbol',bChks(a,'ch_poda',[['','a) Regular crecimiento radicular, de copa y follaje'],['','b) Suprimir ramas mal orientadas o con crecimiento anómalo'],['','c) Mejorar visibilidad sin realizar podas excesivas']]));
-  h+=acord('p3','Fracción IV — Fitosanitaria',bChks(a,'ch_poda',[['w','Eliminación de ramas muertas, plagadas, con hongos, cancros, pudriciones, plantas parásitas o trepadoras']]));
-  h+=acord('p4','Fracción V — Restauración de estructura',bChks(a,'ch_poda',[['','a) Árboles podados más del 25% o con desmoches previos'],['','b) Copas desbalanceadas que requieren reequilibrio'],['','c) Follaje reprimido que requiere formación o topiaria']]));
-  h+=acord('p5','Fracción VI — Afectación a infraestructura',bChks(a,'ch_poda',[['w','Interferencia con tuberías, cableado eléctrico o telecomunicaciones, banquetas, guarniciones, bardas o muros']]));
-  h+=acord('p6','Poda estética o jardinera Art. 59',bChks(a,'ch_poda',[['w','No se requiere permiso para ejecutarla (Diámetro de ramas menor a 7.5 cm)']]));
+  h+=acord('p1','Fracción I — Inminente peligro',bChks(a,'ch_poda',[['w','FI-a) Interferencia con líneas de conducción aérea'],['w','FI-b) Ramas bajas que obstruyen el paso peatonal o vehicular'],['w','FI-c) Impedimento a luminarias y señales de tráfico'],['d','FI-d) Ramas con riesgo de desgajarse'],['d','FI-e) Árboles de porte alto con riesgo de desplome'],['w','FI-f) Ubicados en sitios inadecuados o que dañen la vía pública']]));
+  h+=acord('p2','Fracción II — Mantenimiento de la salud del árbol',bChks(a,'ch_poda',[['','FII-a) Regular crecimiento radicular, de copa y follaje'],['','FII-b) Suprimir ramas mal orientadas o con crecimiento anómalo'],['','FII-c) Mejorar visibilidad sin realizar podas excesivas']]));
+  h+=acord('p3','Fracción IV — Fitosanitaria',bChks(a,'ch_poda',[['w','FIV) Eliminación de ramas muertas, plagadas, con hongos, cancros, pudriciones, plantas parásitas o trepadoras']]));
+  h+=acord('p4','Fracción V — Restauración de estructura',bChks(a,'ch_poda',[['','FV-a) Árboles podados más del 25% o con desmoches previos'],['','FV-b) Copas desbalanceadas que requieren reequilibrio'],['','FV-c) Follaje reprimido que requiere formación o topiaria']]));
+  h+=acord('p5','Fracción VI — Afectación a infraestructura',bChks(a,'ch_poda',[['w','FVI) Interferencia con tuberías, cableado eléctrico o telecomunicaciones, banquetas, guarniciones, bardas o muros']]));
+  h+=acord('p6','Poda estética o jardinera Art. 59',bChks(a,'ch_poda',[['w','A59) No se requiere permiso para ejecutarla (Diámetro de ramas menor a 7.5 cm)']]));
   // Campos tipo de poda y % poda
   h+='<div class="field" style="margin-top:10px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">';
   h+='<label style="font-weight:600;font-size:13px;white-space:nowrap;">Tipo de poda:</label>';
@@ -585,7 +585,7 @@ function buildArbol(id){
 
 function chk(a,campo,val,label,sev){var arr=a[campo]||[],ck=arr.indexOf(val)>=0,cls='ci'+(ck?' ck':'')+(ck&&sev==='w'?' w':ck&&sev==='d'?' d':'');return'<label class="'+cls+'" onclick="tchk(this,\''+campo+'\',\''+val.replace(/'/g,"\\'")+'\')"><div class="cb2">✓</div><span class="cl">'+label+'</span></label>';}
 function excl(a,campo,val,label,sev){var ck=a[campo]===val,cls='ci'+(ck?' ck':'')+(ck&&sev==='w'?' w':ck&&sev==='d'?' d':'');return'<label class="'+cls+'" onclick="texcl(this,\''+campo+'\',\''+val.replace(/'/g,"\\'")+'\')"><div class="cb2">✓</div><span class="cl">'+label+'</span></label>';}
-function bChks(a,campo,items){return items.map(function(v){return chk(a,campo,v[1],v[1],v[0]);}).join('');}
+function bChks(a,campo,items){return items.map(function(v){var lbl=v[1].replace(/^F[IVX]+-[a-z]\)\s*/,'').replace(/^F[IVX]+\)\s*/,'').replace(/^A59\)\s*/,'');return chk(a,campo,v[1],lbl,v[0]);}).join('');}
 function dCard(a,campo,titulo,hCls,items){
   var notaKey='notas_'+campo.replace('ch_','');
   var notaVal=a[notaKey]||'';
@@ -913,12 +913,25 @@ function generarPDF(returnBlob){
     var artMap={};
     (a.ch_poda||[]).forEach(function(v){
       var artNum='';
-      if(v.indexOf('inminente')>=0||v.indexOf('peligro')>=0||v.indexOf('obstruyen')>=0||v.indexOf('luminaria')>=0||v.indexOf('inadecuados')>=0)artNum='Art. 33 Fraccion I';
-      else if(v.indexOf('salud')>=0||v.indexOf('equilibrio')>=0||v.indexOf('estructura')>=0)artNum='Art. 33 Fraccion II';
-      else if(v.indexOf('Eliminacion')>=0||v.indexOf('Eliminación')>=0||v.indexOf('muertas')>=0||v.indexOf('plagadas')>=0||v.indexOf('hongos')>=0||v.indexOf('cancros')>=0||v.indexOf('pudricion')>=0||v.indexOf('pudrición')>=0||v.indexOf('parasita')>=0||v.indexOf('parásita')>=0||v.indexOf('trepadoras')>=0)artNum='Art. 33 Fraccion IV';
-      else if(v.indexOf('podados')>=0||v.indexOf('desbalance')>=0||v.indexOf('Follaje')>=0)artNum='Art. 33 Fraccion V';
-      else if(v.indexOf('Interferencia')>=0||v.indexOf('cableado')>=0||v.indexOf('banquetas')>=0||v.indexOf('bardas')>=0||v.indexOf('tuberias')>=0||v.indexOf('tuberías')>=0||v.indexOf('muros')>=0||v.indexOf('telecomunicaciones')>=0||v.indexOf('guarniciones')>=0)artNum='Art. 33 Fraccion VI';
-      else if(v.indexOf('estetica')>=0||v.indexOf('estética')>=0||v.indexOf('jardinera')>=0||v.indexOf('7.5')>=0||v.indexOf('permiso')>=0)artNum='Art. 59';
+      // Extraer fracción e inciso del prefijo
+      var mFrac=v.match(/^F([IVX]+)-([a-z])\)/);  // FI-a), FII-b), FV-c)
+      var mFracSola=v.match(/^F([IVX]+)\)/);       // FIV), FVI)
+      var mA59=v.match(/^A59\)/);
+      if(mFrac){
+        var frac=mFrac[1],inc=mFrac[2];
+        artNum='Art. 33 Fraccion '+frac+' Inciso '+inc+')';
+      } else if(mFracSola){
+        artNum='Art. 33 Fraccion '+mFracSola[1];
+      } else if(mA59){
+        artNum='Art. 59';
+      }
+      // Fallback por palabras clave para datos anteriores
+      else if(v.indexOf('inminente')>=0||v.indexOf('peligro')>=0)artNum='Art. 33 Fraccion I';
+      else if(v.indexOf('salud')>=0||v.indexOf('equilibrio')>=0)artNum='Art. 33 Fraccion II';
+      else if(v.indexOf('muertas')>=0||v.indexOf('plagadas')>=0||v.indexOf('hongos')>=0)artNum='Art. 33 Fraccion IV';
+      else if(v.indexOf('podados')>=0||v.indexOf('desbalance')>=0)artNum='Art. 33 Fraccion V';
+      else if(v.indexOf('cableado')>=0||v.indexOf('tuberias')>=0||v.indexOf('bardas')>=0)artNum='Art. 33 Fraccion VI';
+      else if(v.indexOf('7.5')>=0||v.indexOf('permiso')>=0)artNum='Art. 59';
       if(artNum)artMap[v]=artNum;
     });
     var fundTxt='—';
