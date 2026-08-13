@@ -925,22 +925,22 @@ function generarPDF(returnBlob){
       } else if(mA59){
         artNum='Art. 59';
       }
-      // Fallback por palabras clave para datos anteriores
-      else if(v.indexOf('inminente')>=0||v.indexOf('peligro')>=0)artNum='Art. 33 Fraccion I';
-      else if(v.indexOf('salud')>=0||v.indexOf('equilibrio')>=0)artNum='Art. 33 Fraccion II';
-      else if(v.indexOf('muertas')>=0||v.indexOf('plagadas')>=0||v.indexOf('hongos')>=0)artNum='Art. 33 Fraccion IV';
-      else if(v.indexOf('podados')>=0||v.indexOf('desbalance')>=0)artNum='Art. 33 Fraccion V';
-      else if(v.indexOf('cableado')>=0||v.indexOf('tuberias')>=0||v.indexOf('bardas')>=0)artNum='Art. 33 Fraccion VI';
-      else if(v.indexOf('7.5')>=0||v.indexOf('permiso')>=0)artNum='Art. 59';
+      // Fallback por palabras clave para datos anteriores (sin prefijo)
+      else if(v.indexOf('Interferencia con líneas')>=0||v.indexOf('Ramas bajas')>=0||v.indexOf('luminaria')>=0||v.indexOf('desgajarse')>=0||v.indexOf('desplome')>=0||v.indexOf('inadecuados')>=0)artNum='Art. 33 Fraccion I';
+      else if(v.indexOf('Regular crecimiento')>=0||v.indexOf('Suprimir ramas')>=0||v.indexOf('Mejorar visibilidad')>=0)artNum='Art. 33 Fraccion II';
+      else if(v.indexOf('Eliminación')>=0||v.indexOf('muertas')>=0||v.indexOf('plagadas')>=0||v.indexOf('hongos')>=0||v.indexOf('parásitas')>=0||v.indexOf('trepadoras')>=0)artNum='Art. 33 Fraccion IV';
+      else if(v.indexOf('podados más')>=0||v.indexOf('desbalanceadas')>=0||v.indexOf('reprimido')>=0)artNum='Art. 33 Fraccion V';
+      else if(v.indexOf('Interferencia con tuberías')>=0||v.indexOf('cableado')>=0||v.indexOf('banquetas')>=0||v.indexOf('bardas')>=0||v.indexOf('guarniciones')>=0)artNum='Art. 33 Fraccion VI';
+      else if(v.indexOf('7.5')>=0||v.indexOf('permiso')>=0||v.indexOf('estética')>=0||v.indexOf('jardinera')>=0)artNum='Art. 59';
       if(artNum)artMap[v]=artNum;
     });
     var fundTxt='—';
     if(arts.length){
       var partes=[];
-      // Poda: usar artMap directamente (ya contiene el texto correcto)
+      // Poda: usar artMap directamente
       (a.ch_poda||[]).forEach(function(v){
-        var txt=artMap[v]?artMap[v]:'Art. 33';
-        partes.push(txt);
+        var txt=artMap[v]||'';
+        if(txt&&partes.indexOf(txt)<0)partes.push(txt);
       });
       // Derribo: Art. 35 Fracción X
       (a.ch_derribo||[]).forEach(function(v){
