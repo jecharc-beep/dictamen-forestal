@@ -1,4 +1,3 @@
-
 // ═══════════════════════════════════════════════════════════
 //  ARBOLADO ZAPOPAN — Apps Script v3
 //  Maneja: PDF a Drive + Dictamen + Reinspección + Búsqueda por folio
@@ -89,6 +88,13 @@ function buscarFolioGet(folio) {
 // ═══════════════════════════════════════════════════════════
 //  GUARDAR REINSPECCIÓN EN SHEETS
 // ═══════════════════════════════════════════════════════════
+function obtenerCarpetaReinspeccion() {
+  var carpetaPrincipal = DriveApp.getFolderById('1uHhI7XkEt_G7nsHkBeJ7W8wCdP10BGj3');
+  var iter = carpetaPrincipal.getFoldersByName('Reinspecciones');
+  if (iter.hasNext()) return iter.next();
+  return carpetaPrincipal.createFolder('Reinspecciones');
+}
+
 function guardarReinspeccion(datos) {
   var ss   = obtenerSheet();
   var hoja = ss.getSheetByName(CONFIG.hojaReinsp);
@@ -246,6 +252,21 @@ function actualizarSheets(datos) {
     colorearFila(hoja, hoja.getLastRow(), datos.riesgo);
   }
   hoja.autoResizeColumns(1, encabezados.length);
+
+  // Guardar PDF en subcarpeta Reinspecciones
+  if (datos.pdf_b64 && datos.pdf_b64.length > 100) {
+    try {
+      var carpetaReinsp = obtenerCarpetaReinspeccion();
+      var nombrePdf = 'Reinspeccion_' + (datos.folio_reinsp||'R') + '_' +
+                      Utilities.formatDate(new Date(), "America/Mexico_City", "yyyyMMdd") + '.pdf';
+      var bytes = Utilities.base64Decode(datos.pdf_b64);
+      var blob  = Utilities.newBlob(bytes, MimeType.PDF, nombrePdf);
+      carpetaReinsp.createFile(blob);
+      Logger.log("PDF reinspección guardado: " + nombrePdf);
+    } catch(e) {
+      Logger.log("Error PDF reinspección: " + e.message);
+    }
+  }
 }
 
 function colorearFila(hoja, numFila, riesgo) {
