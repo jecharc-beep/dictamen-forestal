@@ -364,6 +364,15 @@ function tchk(i,campo,val){
   var idx2=arr.indexOf(val);
   if(idx2>=0){arr.splice(idx2,1);}else{arr.push(val);}
   arboles[i][campo]=arr;
+  // Actualizar solo el checkbox tocado sin rerenderizar toda la lista
+  var allChks=document.querySelectorAll('[data-arbol="'+i+'"][data-campo="'+campo+'"][data-val="'+CSS.escape(val)+'"]');
+  if(allChks.length){
+    var ck=arr.indexOf(val)>=0;
+    allChks[0].classList.toggle('ck',ck);
+    allChks[0].querySelector('.cb').textContent=ck?'✓':'';
+  } else {
+    renderArboles();
+  }
   guardarAuto();
 }
 
@@ -426,7 +435,7 @@ function renderArboles(){
       var h='<div class="field"><label>'+label+'</label><div class="chk-grid">';
       opciones.forEach(function(op){
         var ck=arr.indexOf(op)>=0;
-        h+='<div class="chk-item'+(ck?' ck':'')+'" onclick="tchk('+i+',\''+campo+'\',\''+op.replace(/'/g,"\\'")+'\')">';
+        h+='<div class="chk-item'+(ck?' ck':'')+'" data-arbol="'+i+'" data-campo="'+campo+'" data-val="'+op.replace(/"/g,'&quot;')+'" onclick="tchk('+i+',\''+campo+'\',\''+op.replace(/'/g,"\\'")+'\')">';
         h+='<div class="cb">'+(ck?'✓':'')+'</div>'+op+'</div>';
       });
       h+='</div></div>';
@@ -793,34 +802,142 @@ function generarPDF(){
 function enviarReinspeccion(){
   var folio=g('folio-reinsp')?g('folio-reinsp').value:'';
   var fecha=g('fecha-reinsp')?g('fecha-reinsp').value:'';
-  toast('☁️ Enviando a Drive...');
+  if(!folio){toast('Ingresa el folio de reinspección');return;}
+  toast('☁️ Preparando envío...');
 
-  // Generar PDF en base64
+  // Generar PDF como base64
   var pdfB64='';
   try{
     var jsPDF=window.jspdf.jsPDF;
-    // Reutilizar generarPDF pero capturar como blob
-    var blob=generarPDFBlob();
-    if(blob){
-      var reader=new FileReader();
-      reader.onload=function(e){
-        pdfB64=e.target.result.split(',')[1];
-        _enviarDatosReinsp(folio,fecha,pdfB64);
-      };
-      reader.readAsDataURL(blob);
-      return;
-    }
-  }catch(e){}
-  _enviarDatosReinsp(folio,fecha,'');
-}
+    var doc=new jsPDF({orientation:'portrait',unit:'mm',format:'letter'});
+    var W=215.9,M=10,cW=W-M*2;
+    var TEAL=[0,107,95],ORG=[231,111,0],BLK=[28,43,34],GR=[90,122,98],
+        LG=[216,243,220],GC=[200,215,205],WH=[255,255,255],GOLD_L=[255,248,220];
+    var y=M;
+    var PH=doc.internal.pageSize.height;
 
-function generarPDFBlob(){
-  // Llamar a generarPDF y devolver blob
-  try{
-    var jsPDF=window.jspdf.jsPDF;
-    // Reutilizar la lógica existente pero devolver output blob
-    return null; // generarPDF ya descarga, usar output directamente
-  }catch(e){return null;}
+    // Encabezado
+    doc.setFillColor.apply(doc,TEAL);doc.rect(0,0,W,8,'F');
+    doc.setFont('helvetica','normal');doc.setFontSize(6);doc.setTextColor.apply(doc,WH);
+    doc.text('H. Ayuntamiento de Zapopan, Jalisco  -  Direccion de Parques y Jardines',W/2,5,'center');
+    doc.setFillColor(255,255,255);doc.rect(0,8,W,22,'F');
+    doc.setFont('helvetica','bold');doc.setFontSize(18);doc.setTextColor.apply(doc,TEAL);
+    doc.text('REINSPECCION FORESTAL',W/2,20,'center');
+    doc.setDrawColor.apply(doc,ORG);doc.setLineWidth(0.8);doc.line(0,30,W,30);
+
+    // Banda datos
+    doc.setFillColor.apply(doc,TEAL);doc.rect(0,30,W,11,'F');
+    var cols2=[{l:'FOLIO REINSP.',v:folio},{l:'FOLIO ORIGINAL',v:g('folio-orig')?g('folio-orig').value:''},{l:'FECHA',v:fecha},{l:'SUPERVISOR',v:g('sup-reinsp')?g('sup-reinsp').value:''}];
+    var xc=M;
+    cols2.forEach(function(col){
+      var w2=cW/4;
+      doc.setTextColor(180,235,225);doc.setFont('helvetica','bold');doc.setFontSize(5.5);
+      doc.text(col.l,xc,33);
+      doc.setTextColor.apply(doc,WH);doc.setFont('helvetica','bold');doc.setFontSize(8);
+      doc.text(col.v||'—',xc,38);
+      xc+=w2;
+    });
+    y=45;
+
+    // Motivo y observaciones
+    var motivo=g('motivo')?g('motivo').value:'';
+    var obs=g('obs-reinsp')?g('obs-reinsp').value:'';
+    if(motivo){
+      doc.setFillColor.apply(doc,LG);doc.rect(M,y,cW,8,'F');
+      doc.setFont('helvetica','bold');doc.setFontSize(7);doc.setTextColor.apply(doc,TEAL);
+      doc.text('Motivo:',M+2,y+5.5);
+      doc.setFont('helvetica','normal');doc.setFontSize(8);doc.setTextColor.apply(doc,BLK);
+      doc.text(motivo,M+18,y+5.5);
+      y+=10;
+    }
+
+    // Tabla árboles
+    doc.setFillColor.apply(doc,TEAL);doc.rect(M,y,cW,8,'F');
+    doc.setFont('helvetica','bold');doc.setFontSize(9);doc.setTextColor.apply(doc,WH);
+    doc.text('EVALUACION POR ARBOL',M+3,y+5.5);y+=8;
+
+    arboles.forEach(function(a,i){
+      if(y+60>PH-12){doc.addPage();y=M;}
+      // Hdr árbol
+      doc.setFillColor.apply(doc,TEAL);doc.rect(M,y,cW,7,'F');
+      doc.setFont('helvetica','bold');doc.setFontSize(8.5);doc.setTextColor.apply(doc,WH);
+      doc.text('Arbol #'+(i+1)+(a.especie?' — '+a.especie:''),M+3,y+5);
+      if(a.riesgo_nuevo){
+        var rCol=a.riesgo_nuevo==='alto'?[200,40,40]:a.riesgo_nuevo==='medio'?[240,180,0]:[27,100,60];
+        var rLbl=a.riesgo_nuevo==='alto'?'ALTO':a.riesgo_nuevo==='medio'?'MEDIO':'NO APLICA';
+        doc.setFontSize(7.5);doc.setTextColor.apply(doc,rCol);
+        doc.text('Riesgo: '+rLbl,W-M-2,y+5,'right');
+      }
+      y+=7;
+
+      // Datos
+      var LW=cW*0.5,RW=cW*0.5;
+      function evalFila(lbl,txt,xOff,w,shade){
+        var sH=doc.splitTextToSize(txt||'—',w-18);
+        var h=Math.max(8,sH.length*4+3);
+        if(y+h>PH-12){doc.addPage();y=M;}
+        if(shade){doc.setFillColor.apply(doc,GOLD_L);}else{doc.setFillColor(255,255,255);}
+        doc.rect(M+xOff,y,w,h,'FD');
+        doc.setFont('helvetica','bold');doc.setFontSize(6.5);doc.setTextColor.apply(doc,TEAL);
+        doc.text(lbl,M+xOff+2,y+4);
+        doc.setFont('helvetica','normal');doc.setFontSize(7);doc.setTextColor.apply(doc,BLK);
+        sH.forEach(function(l,li){doc.text(l,M+xOff+18,y+4+li*4);});
+        return h;
+      }
+      var copaT=(a.ch_copa||[]).length?(a.ch_copa||[]).join('; '):'Sin hallazgos';
+      var fusteT=(a.ch_fuste||[]).length?(a.ch_fuste||[]).join('; '):'Sin hallazgos';
+      var raizT=(a.ch_raiz||[]).length?(a.ch_raiz||[]).join('; '):'Sin hallazgos';
+      var hCopa=evalFila('Copa',copaT,0,LW,false);
+      var yBef=y;y=yBef;evalFila('Req.:',a.manejo_nuevo||'—',LW,RW,false);y=yBef+hCopa;
+      var hFuste=evalFila('Fuste',fusteT,0,LW,false);
+      yBef=y;y=yBef;evalFila('Afect.:',(a.sitio||'—'),LW,RW,false);y=yBef+hFuste;
+      evalFila('Raiz',raizT,0,cW,false);
+      if(a.notas){evalFila('Notas:',a.notas,0,cW,true);}
+      y+=2;
+    });
+
+    // Conclusión y acción
+    var conclusion=g('conclusion')?g('conclusion').value:'';
+    var accion=g('accion-final')?g('accion-final').value:'';
+    if(conclusion||accion){
+      if(y+20>PH-12){doc.addPage();y=M;}
+      doc.setFillColor.apply(doc,TEAL);doc.rect(M,y,cW,7,'F');
+      doc.setFont('helvetica','bold');doc.setFontSize(8.5);doc.setTextColor.apply(doc,WH);
+      doc.text('Resultado',M+3,y+5);y+=7;
+      if(conclusion){
+        var sC=doc.splitTextToSize(conclusion,cW-4);
+        var hC=Math.max(10,sC.length*4.5+4);
+        doc.setFillColor(255,255,255);doc.rect(M,y,cW,hC,'FD');
+        doc.setFont('helvetica','normal');doc.setFontSize(8);doc.setTextColor.apply(doc,BLK);
+        sC.forEach(function(l,li){doc.text(l,M+3,y+4.5+li*4.5);});
+        y+=hC+2;
+      }
+      if(accion){
+        doc.setFillColor.apply(doc,GOLD_L);doc.rect(M,y,cW,9,'FD');
+        doc.setFont('helvetica','bold');doc.setFontSize(7);doc.setTextColor.apply(doc,TEAL);
+        doc.text('Accion recomendada:',M+2,y+5.5);
+        doc.setFont('helvetica','bold');doc.setFontSize(8);doc.setTextColor.apply(doc,BLK);
+        doc.text(accion,M+46,y+5.5);y+=11;
+      }
+    }
+
+    // Firmas
+    if(y+38>PH-12){doc.addPage();y=M;}
+    y+=4;
+    var fw=(cW-14)/2;
+    doc.setDrawColor.apply(doc,BLK);doc.setLineWidth(0.4);
+    doc.line(M+8,y+22,M+fw-8,y+22);
+    doc.line(M+fw+14+8,y+22,M+fw*2+14-8,y+22);
+    doc.setFont('helvetica','',8);doc.setTextColor.apply(doc,GR);
+    doc.text(g('firma-sup')?g('firma-sup').value||'Supervisor/a Forestal':'Supervisor/a Forestal',M+fw/2,y+27,'center');
+    doc.text('Jefe de Area',M+fw+14+fw/2,y+27,'center');
+
+    pdfB64=doc.output('datauristring').split(',')[1];
+  }catch(e){
+    console.error('Error generando PDF reinspección:',e);
+  }
+
+  _enviarDatosReinsp(folio,fecha,pdfB64);
 }
 
 function _enviarDatosReinsp(folio,fecha,pdfB64){
