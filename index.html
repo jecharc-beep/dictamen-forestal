@@ -661,9 +661,9 @@ function generarPDF(returnBlob){
     doc.setTextColor.apply(doc,BLK);
     doc.text('H. Ayuntamiento de Zapopan, Jalisco.',W/2,7,'center');
     // Logo GobZap izq — ratio 1.342
-    try{var gH=22,gW=gH*1.342;doc.addImage('data:image/jpeg;base64,'+IMG_GOBZAP,'JPEG',M,6,gW,gH);}catch(e){}
+    if(IMG_GOBZAP){try{var gH=22,gW=gH*1.342;doc.addImage('data:image/jpeg;base64,'+IMG_GOBZAP,'JPEG',M,6,gW,gH);}catch(e){console.warn('Logo GobZap:',e.message);}}
     // Logo Parques der — ratio 1.500
-    try{var pH2=22,pW=pH2*1.500;doc.addImage('data:image/jpeg;base64,'+IMG_PARQUES,'JPEG',W-M-pW,6,pW,pH2);}catch(e){}
+    if(IMG_PARQUES){try{var pH2=22,pW=pH2*1.500;doc.addImage('data:image/jpeg;base64,'+IMG_PARQUES,'JPEG',W-M-pW,6,pW,pH2);}catch(e){console.warn('Logo Parques:',e.message);}}
     // Título
     doc.setFont('helvetica','bold');doc.setFontSize(22);doc.setTextColor.apply(doc,TEAL);
     doc.text('Dictamen Forestal',W/2,19,'center');
