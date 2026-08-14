@@ -3,7 +3,7 @@
 //  Permite uso offline completo
 // ═══════════════════════════════════════════════
 
-const CACHE_NAME = 'dictamen-forestal-v60';
+const CACHE_NAME = 'dictamen-forestal-v61';
 const BASE = '/dictamen-forestal';
 
 // Archivos a cachear para uso offline
