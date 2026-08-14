@@ -184,25 +184,9 @@ body{font-family:'IBM Plex Sans',sans-serif;background:var(--fo);color:var(--gr)
     <div class="sec-title">✅ Cierre</div>
     <div class="card"><div class="ch vrd"><span class="ch-icon">📊</span>Resumen</div><div class="cb" id="resumen"></div></div>
     <div class="card">
-      <div class="ch gr"><span class="ch-icon">🗺️</span>Georreferenciación</div>
+      <div class="ch gr"><span class="ch-icon">📝</span>Observaciones generales</div>
       <div class="cb">
-        <div id="map-wrap">🗺️ El mapa carga aquí</div>
-        <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:9px;">
-          <!-- Campo de búsqueda de dirección -->
-          <div style="display:flex;gap:6px;">
-            <input id="addr-input" type="text" placeholder="Buscar dirección o colonia..." style="flex:1;padding:8px 12px;border-radius:8px;border:1px solid var(--gc);font-size:14px;font-family:inherit;" onkeydown="if(event.key==='Enter')buscarDireccion()">
-            <button class="btn bp" onclick="buscarDireccion()" style="padding:8px 14px;font-size:14px;white-space:nowrap;">🔍 Ir</button>
-          </div>
-          <div id="addr-label" style="font-size:12px;color:var(--gm);padding:2px 4px;display:none;"></div>
-          <div style="display:flex;gap:8px;">
-            <button class="btn bp" id="btn-ubicar" onclick="ubicarArbol()" style="flex:1;font-size:14px;">📍 Marcar árbol</button>
-            <button class="btn bs" onclick="usarGPS()" style="flex:1;font-size:14px;">🛰️ GPS</button>
-          </div>
-          <button class="btn bs btn-full" onclick="limpiarMarcadores()" style="font-size:14px;">🗑️ Limpiar</button>
-          <div id="mlabel" style="font-size:13px;color:var(--gm);text-align:center;padding:4px;">Toca "Marcar árbol" y luego el mapa</div>
-        </div>
-        <div id="coords-wrap" style="display:none;margin-bottom:10px;"></div>
-        <div class="field"><label>Observaciones generales</label><textarea id="obs" placeholder="Observaciones del dictamen…" oninput="guardarAuto()"></textarea></div>
+        <div class="field"><textarea id="obs" placeholder="Observaciones del dictamen…" oninput="guardarAuto()"></textarea></div>
       </div>
     </div>
     <div class="card">
@@ -252,6 +236,17 @@ body{font-family:'IBM Plex Sans',sans-serif;background:var(--fo);color:var(--gr)
 <script>
 var SCRIPT_URL='https://script.google.com/macros/s/AKfycbyDw0hoQgY-yd431MEg3cUkqGjoImu8MQv8ecrpxBoZlj2ocaEz2L4uFpLk-dRMT0MW_w/exec';
 var SKEY='zap_gh_v1';
+// ── Logos globales (pre-cargados al inicio) ──
+var IMG_PARQUES='', IMG_GOBZAP='';
+(function(){
+  function toB64(url,cb){
+    fetch(url).then(function(r){return r.blob();})
+    .then(function(b){var rd=new FileReader();rd.onload=function(e){cb(e.target.result.split(',')[1]);};rd.readAsDataURL(b);})
+    .catch(function(){cb('');});
+  }
+  toB64('logo-parques.jpg',function(b){IMG_PARQUES=b;});
+  toB64('logo-gobzap.jpg', function(b){IMG_GOBZAP=b;});
+})();
 var arboles=[],arbolActivo=0,fotosArr=[];
 var map=null,marcadores=[],modoMarcado=false;
 var saveTimer=null;
@@ -434,6 +429,21 @@ function _enviarDictamen(){
   showModal('Generando dictamen…','Creando PDF y enviando a Drive…');
   setSyncBadge('sync');
   var pdfBlob;
+  // Verificar logos cargados antes de generar PDF
+  if(!IMG_PARQUES||!IMG_GOBZAP){
+    toast('⏳ Cargando logos...');
+    var intentos=0;
+    var esperar=setInterval(function(){
+      intentos++;
+      if((IMG_PARQUES&&IMG_GOBZAP)||intentos>20){
+        clearInterval(esperar);
+        _generarYEnviar();
+      }
+    },200);
+  } else {
+    _generarYEnviar();
+  }
+  function _generarYEnviar(){
   try{pdfBlob=generarPDF(true);}
   catch(err){
     console.error('Error generando PDF:',err);
@@ -465,6 +475,7 @@ function _enviarDictamen(){
   };
   reader.onerror=function(){hideModal('❌','Error','No se pudo leer el PDF generado.');setSyncBadge('err');};
   reader.readAsDataURL(pdfBlob);
+  } // fin _generarYEnviar
 }
 
 function nuevoArbol(n){return{id:Date.now()+'_'+n,nombre:'Árbol '+n,especie:'',cientifico:'',altura:'',dap:'',fase:null,estado:null,ciclo:null,ram:null,ch_raiz:[],ch_fuste:[],ch_copa:[],ch_plagas:[],ch_diana:[],sitio:null,sitio_otro:'',pct_poda:'',tipo_poda:'',ch_req:[],ch_poda:[],ch_derribo:[],ch_nae_tras:[],ch_nae_der:[],compensacion:null,riesgo:null,notas:'',notas_r:'',notas_raiz:'',notas_fuste:'',notas_copa:'',_pts:0};}
@@ -620,14 +631,7 @@ function renderResumen(){
 // ══════════════════════════════════════════════════════════
 // VERSION: 2026-07-07-v14-tabla-arboles
 function generarPDF(returnBlob){
-  var IMG_PARQUES='';var IMG_GOBZAP='';
-// Cargar logos desde archivos externos (más eficiente)
-(function(){
-  function toB64(url,cb){fetch(url).then(function(r){return r.blob();}).then(function(b){var rd=new FileReader();rd.onload=function(e){cb(e.target.result.split(',')[1]);};rd.readAsDataURL(b);}).catch(function(){cb('');});}
-  toB64('logo-parques.jpg',function(b){IMG_PARQUES=b;});
-  toB64('logo-gobzap.jpg', function(b){IMG_GOBZAP=b;});
-})();
-  
+  // Logos cargados globalmente al inicio
 
   var folio=g('folio')?g('folio').value:'';
   var sup=g('sup')?g('sup').value:'';
