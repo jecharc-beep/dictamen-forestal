@@ -213,7 +213,19 @@ body{font-family:'IBM Plex Sans',sans-serif;background:var(--bg);color:var(--txt
           <option>Dictamen sin efecto — Árbol intervenido</option>
           <option>Dictamen sin efecto — Árbol caído/muerto</option>
           <option>Requiere nueva evaluación</option>
+          <option>Se agregan nuevos sujetos forestales</option>
         </select>
+      </div>
+      <div class="field">
+        <label>Fotos de reinspección</label>
+        <div style="display:flex;gap:8px;margin-bottom:8px;">
+          <button class="btn btn-v" onclick="document.getElementById('fotos-reinsp-cam').click()" style="flex:1;">📷 Cámara</button>
+          <button class="btn btn-ghost" onclick="document.getElementById('fotos-reinsp-gal').click()" style="flex:1;">🖼️ Galería</button>
+        </div>
+        <input type="file" id="fotos-reinsp-cam" accept="image/*" capture="environment" multiple style="display:none" onchange="agregarFotosReinsp(this)">
+        <input type="file" id="fotos-reinsp-gal" accept="image/*" multiple style="display:none" onchange="agregarFotosReinsp(this)">
+        <div id="fotos-reinsp-preview" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;"></div>
+        <p id="fotos-reinsp-count" style="font-size:12px;color:var(--gm);margin-top:4px;">Sin fotos.</p>
       </div>
       <div class="field">
         <label>Supervisor/a Forestal</label>
@@ -251,6 +263,7 @@ var SCRIPT_URL='https://script.google.com/macros/s/AKfycbyDw0hoQgY-yd431MEg3cUkq
 // ESTADO
 // ═══════════════════════════════════════════
 var arboles=[]; // árboles cargados del dictamen o creados manualmente
+var fotosReinsp=[]; // fotos de la reinspección
 var dictamenOrig=null; // datos del dictamen original
 
 function g(id){return document.getElementById(id);}
@@ -416,6 +429,7 @@ function renderArboles(){
     html+='<div class="field"><label>Altura nueva (m)</label><input type="number" value="'+esc(a.altura_nueva)+'" placeholder="m" oninput="sf('+i+',\'altura_nueva\',this.value)"></div>';
     html+='<div class="field"><label>DAP nuevo (cm)</label><input type="number" value="'+esc(a.dap_nuevo)+'" placeholder="cm" oninput="sf('+i+',\'dap_nuevo\',this.value)"></div>';
     html+='</div>';
+    html+='<div class="field"><label>Sitio</label><input type="text" value="'+esc(a.sitio_nuevo||a.sitio||'')+'" placeholder="Banqueta, camellón, parque..." oninput="sf('+i+',\'sitio_nuevo\',this.value)"></div>';
     html+='<div class="g2">';
     html+='<div class="field"><label>Estado físico</label>';
     html+='<select onchange="sf('+i+',\'estado_nuevo\',this.value)"><option value="">Seleccionar</option>';
@@ -501,6 +515,52 @@ function renderResumen(){
 // ═══════════════════════════════════════════
 // GUARDAR AUTO (localStorage)
 // ═══════════════════════════════════════════
+function agregarFotosReinsp(inp){
+  var MAX=10;
+  var archivos=Array.from(inp.files);
+  inp.value='';
+  var disponibles=MAX-fotosReinsp.length;
+  if(disponibles<=0){toast('Máximo '+MAX+' fotos');return;}
+  archivos=archivos.slice(0,disponibles);
+  archivos.forEach(function(f){
+    var r=new FileReader();
+    r.onload=function(e){
+      var img=new Image();
+      img.onload=function(){
+        var MAX_W=800,MAX_H=800,w=img.width,h=img.height;
+        if(w>MAX_W){h=Math.round(h*MAX_W/w);w=MAX_W;}
+        if(h>MAX_H){w=Math.round(w*MAX_H/h);h=MAX_H;}
+        var cv=document.createElement('canvas');cv.width=w;cv.height=h;
+        cv.getContext('2d').drawImage(img,0,0,w,h);
+        var b64=cv.toDataURL('image/jpeg',0.65);
+        fotosReinsp.push(b64);
+        renderFotosReinsp();
+      };
+      img.src=e.target.result;
+    };
+    r.readAsDataURL(f);
+  });
+}
+function renderFotosReinsp(){
+  var prev=document.getElementById('fotos-reinsp-preview');
+  var cnt=document.getElementById('fotos-reinsp-count');
+  if(!prev)return;
+  prev.innerHTML='';
+  fotosReinsp.forEach(function(b64,i){
+    var div=document.createElement('div');
+    div.style.cssText='position:relative;width:80px;height:80px;';
+    var img=document.createElement('img');
+    img.src='data:image/jpeg;base64,'+b64;
+    img.style.cssText='width:80px;height:80px;object-fit:cover;border-radius:6px;border:1px solid var(--bdr);';
+    var btn=document.createElement('button');
+    btn.textContent='✕';
+    btn.style.cssText='position:absolute;top:2px;right:2px;background:rgba(0,0,0,.6);color:#fff;border:none;border-radius:50%;width:20px;height:20px;font-size:11px;cursor:pointer;';
+    btn.onclick=function(){fotosReinsp.splice(i,1);renderFotosReinsp();};
+    div.appendChild(img);div.appendChild(btn);prev.appendChild(div);
+  });
+  if(cnt)cnt.textContent=fotosReinsp.length?fotosReinsp.length+' foto(s).':'Sin fotos.';
+}
+
 function guardarAuto(){
   try{
     var data={
@@ -851,48 +911,129 @@ function enviarReinspeccion(){
       y+=10;
     }
 
-    // Tabla árboles
+    // ── Observaciones generales ──
+    if(obs){
+      var obsL=doc.splitTextToSize(obs,cW-4);
+      var ohObs=Math.max(8,obsL.length*4.5+4);
+      if(y+ohObs+14>PH-12){doc.addPage();y=M;}
+      doc.setFillColor.apply(doc,LG);doc.rect(M,y,cW,7,'F');
+      doc.setFont('helvetica','bold');doc.setFontSize(8);doc.setTextColor.apply(doc,TEAL);
+      doc.text('Observaciones generales',M+3,y+5);y+=7;
+      doc.setFillColor(255,255,255);doc.rect(M,y,cW,ohObs,'FD');
+      doc.setFont('helvetica','normal');doc.setFontSize(8);doc.setTextColor.apply(doc,BLK);
+      obsL.forEach(function(l,li){doc.text(l,M+3,y+4.5+li*4.5);});y+=ohObs+3;
+    }
+
+    // ── Tabla árboles ──
     doc.setFillColor.apply(doc,TEAL);doc.rect(M,y,cW,8,'F');
     doc.setFont('helvetica','bold');doc.setFontSize(9);doc.setTextColor.apply(doc,WH);
     doc.text('EVALUACION POR ARBOL',M+3,y+5.5);y+=8;
 
     arboles.forEach(function(a,i){
-      if(y+60>PH-12){doc.addPage();y=M;}
-      // Hdr árbol
-      doc.setFillColor.apply(doc,TEAL);doc.rect(M,y,cW,7,'F');
-      doc.setFont('helvetica','bold');doc.setFontSize(8.5);doc.setTextColor.apply(doc,WH);
-      doc.text('Arbol #'+(i+1)+(a.especie?' — '+a.especie:''),M+3,y+5);
-      if(a.riesgo_nuevo){
-        var rCol=a.riesgo_nuevo==='alto'?[200,40,40]:a.riesgo_nuevo==='medio'?[240,180,0]:[27,100,60];
-        var rLbl=a.riesgo_nuevo==='alto'?'ALTO':a.riesgo_nuevo==='medio'?'MEDIO':'NO APLICA';
-        doc.setFontSize(7.5);doc.setTextColor.apply(doc,rCol);
-        doc.text('Riesgo: '+rLbl,W-M-2,y+5,'right');
-      }
+      if(y+80>PH-12){doc.addPage();y=M;}
+
+      // ── Encabezado árbol ──
+      doc.setFillColor.apply(doc,TEAL);doc.rect(M,y,cW,8,'F');
+      doc.setFont('helvetica','bold');doc.setFontSize(9);doc.setTextColor.apply(doc,WH);
+      var tituloArbol='Arbol #'+(i+1)+(a.especie?' — '+a.especie:'');
+      doc.text(tituloArbol,M+3,y+5.5);
+      var sitioR=a.sitio_nuevo||a.sitio||'';
+      if(sitioR){doc.setFont('helvetica','normal');doc.setFontSize(7.5);doc.text('Sitio: '+sitioR,W-M-2,y+5.5,'right');}
+      y+=8;
+
+      // ── Fila datos generales: 8 columnas ──
+      var datCols=[
+        {t:'N. comun',    v:a.especie||'—',         w:cW*0.18},
+        {t:'N. cientifico',v:a.cientifico||'—',     w:cW*0.22},
+        {t:'Altura',      v:a.altura_nueva?a.altura_nueva+' m':'—', w:cW*0.10},
+        {t:'DAP',         v:a.dap_nuevo?a.dap_nuevo+' cm':'—',      w:cW*0.10},
+        {t:'Estado',      v:a.estado_nuevo||'—',    w:cW*0.12},
+        {t:'Fase',        v:a.fase_nueva||'—',      w:cW*0.13},
+        {t:'Sitio',       v:sitioR||'—',            w:cW*0.15},
+        {t:'Riesgo',      v:(a.riesgo_nuevo==='alto'?'ALTO':a.riesgo_nuevo==='medio'?'MEDIO':'No aplica'),  w:cW*0.10}
+      ];
+      // Header
+      var xDat=M;
+      datCols.forEach(function(dc2){
+        doc.setFillColor.apply(doc,GOLD_L);doc.rect(xDat,y,dc2.w,5.5,'F');
+        doc.setDrawColor.apply(doc,GC);doc.setLineWidth(0.15);doc.rect(xDat,y,dc2.w,5.5,'S');
+        doc.setFont('helvetica','bold');doc.setFontSize(5);doc.setTextColor.apply(doc,BLK);
+        doc.text(dc2.t,xDat+dc2.w/2,y+3,'center');
+        xDat+=dc2.w;
+      });
+      y+=5.5;
+      // Valores
+      xDat=M;
+      datCols.forEach(function(dc2){
+        doc.setFillColor(255,255,255);doc.rect(xDat,y,dc2.w,7,'F');
+        doc.setDrawColor.apply(doc,GC);doc.setLineWidth(0.15);doc.rect(xDat,y,dc2.w,7,'S');
+        var fs2=dc2.w<20?5.5:6.5;
+        if(dc2.t==='N. cientifico')doc.setFont('helvetica','bolditalic');else doc.setFont('helvetica','normal');
+        doc.setFontSize(fs2);doc.setTextColor.apply(doc,BLK);
+        var txt2=doc.splitTextToSize(dc2.v,dc2.w-2);
+        doc.text(txt2[0]||'—',xDat+dc2.w/2,y+4.5,'center');
+        xDat+=dc2.w;
+      });
+      doc.setFont('helvetica','normal');
       y+=7;
 
-      // Datos
+      // ── Evaluación estructural ──
       var LW=cW*0.5,RW=cW*0.5;
-      function evalFila(lbl,txt,xOff,w,shade){
+      // Sub-encabezados
+      doc.setFillColor.apply(doc,[210,240,237]);
+      doc.rect(M,y,LW,5.5,'F');doc.rect(M+LW,y,RW,5.5,'F');
+      doc.setDrawColor.apply(doc,GC);doc.setLineWidth(0.15);
+      doc.rect(M,y,LW,5.5,'S');doc.rect(M+LW,y,RW,5.5,'S');
+      doc.setFont('helvetica','bold');doc.setFontSize(6);doc.setTextColor.apply(doc,TEAL);
+      doc.text('Evaluacion estructural',M+LW/2,y+3.8,'center');
+      doc.text('Requerimientos / Manejo',M+LW+RW/2,y+3.8,'center');
+      y+=5.5;
+
+      function evalFila2(lbl,txt,xOff,w,shade){
         var sH=doc.splitTextToSize(txt||'—',w-18);
-        var h=Math.max(8,sH.length*4+3);
+        var h=Math.max(7,sH.length*4.2+3);
         if(y+h>PH-12){doc.addPage();y=M;}
         if(shade){doc.setFillColor.apply(doc,GOLD_L);}else{doc.setFillColor(255,255,255);}
         doc.rect(M+xOff,y,w,h,'FD');
         doc.setFont('helvetica','bold');doc.setFontSize(6.5);doc.setTextColor.apply(doc,TEAL);
         doc.text(lbl,M+xOff+2,y+4);
         doc.setFont('helvetica','normal');doc.setFontSize(7);doc.setTextColor.apply(doc,BLK);
-        sH.forEach(function(l,li){doc.text(l,M+xOff+18,y+4+li*4);});
+        sH.forEach(function(l,li){doc.text(l,M+xOff+18,y+4+li*4.2);});
         return h;
       }
-      var copaT=(a.ch_copa||[]).length?(a.ch_copa||[]).join('; '):'Sin hallazgos';
-      var fusteT=(a.ch_fuste||[]).length?(a.ch_fuste||[]).join('; '):'Sin hallazgos';
-      var raizT=(a.ch_raiz||[]).length?(a.ch_raiz||[]).join('; '):'Sin hallazgos';
-      var hCopa=evalFila('Copa',copaT,0,LW,false);
-      var yBef=y;y=yBef;evalFila('Req.:',a.manejo_nuevo||'—',LW,RW,false);y=yBef+hCopa;
-      var hFuste=evalFila('Fuste',fusteT,0,LW,false);
-      yBef=y;y=yBef;evalFila('Afect.:',(a.sitio||'—'),LW,RW,false);y=yBef+hFuste;
-      evalFila('Raiz',raizT,0,cW,false);
-      if(a.notas){evalFila('Notas:',a.notas,0,cW,true);}
+
+      var copaT=(a.ch_copa||[]).length?(a.ch_copa||[]).join(', '):'Sin hallazgos';
+      var fusteT=(a.ch_fuste||[]).length?(a.ch_fuste||[]).join(', '):'Sin hallazgos';
+      var raizT=(a.ch_raiz||[]).length?(a.ch_raiz||[]).join(', '):'Sin hallazgos';
+      var reqT=a.manejo_nuevo||'—';
+      var manejoT=a.manejo_nuevo||'Sin manejo';
+
+      // Copa | Requerimientos/Manejo
+      var hCopa=evalFila2('Copa',copaT,0,LW,false);
+      var yBef=y;y=yBef;
+      evalFila2('Manejo:',manejoT,LW,RW,true);
+      y=yBef+hCopa;
+
+      // Fuste | Afectaciones+Riesgo
+      var fusteRiesgoT='Riesgo: '+(a.riesgo_nuevo==='alto'?'ALTO':a.riesgo_nuevo==='medio'?'MEDIO':'NO APLICA');
+      var hFuste=evalFila2('Fuste',fusteT,0,LW,false);
+      yBef=y;y=yBef;
+      evalFila2('Afect.:',sitioR||'—',LW,RW*0.6,false);
+      y=yBef;
+      var rColArr=a.riesgo_nuevo==='alto'?[200,40,40]:a.riesgo_nuevo==='medio'?[200,150,0]:[27,100,60];
+      doc.setFillColor(255,255,255);doc.rect(M+LW+RW*0.6,yBef,RW*0.4,hFuste,'FD');
+      doc.setFont('helvetica','bold');doc.setFontSize(6);doc.setTextColor.apply(doc,TEAL);
+      doc.text('Riesgo:',M+LW+RW*0.6+2,yBef+3.5);
+      doc.setFontSize(7);doc.setTextColor.apply(doc,rColArr);
+      var rLbl2=a.riesgo_nuevo==='alto'?'ALTO':a.riesgo_nuevo==='medio'?'MEDIO':'NO APLICA';
+      doc.text(rLbl2,M+LW+RW*0.6+RW*0.2,yBef+8,'center');
+      y=yBef+hFuste;
+
+      // Raíz (ancho completo)
+      evalFila2('Raiz',raizT,0,cW,false);
+
+      // Notas del árbol
+      if(a.notas){evalFila2('Notas:',a.notas,0,cW,true);}
       y+=2;
     });
 
@@ -919,6 +1060,25 @@ function enviarReinspeccion(){
         doc.setFont('helvetica','bold');doc.setFontSize(8);doc.setTextColor.apply(doc,BLK);
         doc.text(accion,M+46,y+5.5);y+=11;
       }
+    }
+
+    // Fotos de reinspección
+    if(fotosReinsp&&fotosReinsp.length){
+      doc.addPage();y=M;
+      doc.setFillColor.apply(doc,TEAL_L);doc.rect(M,y,cW,7,'F');
+      doc.setFont('helvetica','bold');doc.setFontSize(8.5);doc.setTextColor.apply(doc,TEAL);
+      doc.text('Registro fotografico — Reinspeccion',M+3,y+5);y+=9;
+      var gap2=5,fW2=(cW-gap2)/2,fH2=fW2*0.75;
+      fotosReinsp.forEach(function(fs,fi){
+        var posEnPag=fi%4,col2=posEnPag%2,fila2=Math.floor(posEnPag/2);
+        if(fi>0&&posEnPag===0){doc.addPage();y=M;}
+        var fx2=M+col2*(fW2+gap2),fy2=y+fila2*(fH2+10);
+        doc.setFont('helvetica','bold');doc.setFontSize(8);doc.setTextColor.apply(doc,TEAL);
+        doc.text('Foto '+(fi+1),fx2,fy2-1);
+        doc.setFillColor(240,246,242);doc.rect(fx2,fy2,fW2,fH2,'F');
+        doc.setDrawColor.apply(doc,GC);doc.setLineWidth(0.3);doc.rect(fx2,fy2,fW2,fH2,'S');
+        try{doc.addImage(fs,'JPEG',fx2,fy2,fW2,fH2,'','FAST');}catch(e){}
+      });
     }
 
     // Firmas
@@ -952,6 +1112,7 @@ function _enviarDatosReinsp(folio,fecha,pdfB64){
     conclusion:g('conclusion')?g('conclusion').value:'',
     accion_final:g('accion-final')?g('accion-final').value:'',
     pdf_b64:pdfB64,
+    num_fotos:fotosReinsp?fotosReinsp.length:0,
     arboles:arboles.map(function(a){return{
       nombre:a.especie||a.nombre,especie:a.especie,cientifico:a.cientifico,
       altura:a.altura_nueva,dap:a.dap_nuevo,estado:a.estado_nuevo,fase:a.fase_nueva,
