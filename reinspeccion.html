@@ -336,7 +336,7 @@ function buscarFolio(){
             altura_nueva:'',dap_nuevo:'',estado_nuevo:'',fase_nueva:'',
             ch_copa:[],ch_fuste:[],ch_raiz:[],
             cambios_copa:[],cambios_fuste:[],cambios_raiz:[],
-            riesgo_nuevo:'',manejo_nuevo:'',notas:''
+            riesgo_nuevo:'',manejo_nuevo:'',accion_arbol:'',notas:''
           };
         });
 
@@ -455,7 +455,7 @@ function renderArboles(){
     html+='</select></div>';
     html+='<div class="field"><label>Fase fenológica</label>';
     html+='<select onchange="sf('+i+',\'fase_nueva\',this.value)"><option value="">Seleccionar</option>';
-    ['Vegetativo','Floración','Fructificación','Seco'].forEach(function(v){html+='<option'+(a.fase_nueva===v?' selected':'')+'>'+v+'</option>';});
+    ['Vegetativo','Seco'].forEach(function(v){html+='<option'+(a.fase_nueva===v?' selected':'')+'>'+v+'</option>';});
     html+='</select></div>';
     html+='</div>';
 
@@ -488,6 +488,7 @@ function renderArboles(){
     });
     html+='</div></div>';
 
+    html+='<div class="g2">';
     html+='<div class="field"><label>Manejo recomendado</label>';
     html+='<select onchange="sf('+i+',\'manejo_nuevo\',this.value)">';
     html+='<option value="">Seleccionar...</option>';
@@ -495,6 +496,14 @@ function renderArboles(){
       html+='<option'+(a.manejo_nuevo===v?' selected':'')+'>'+v+'</option>';
     });
     html+='</select></div>';
+    html+='<div class="field"><label>Acción recomendada</label>';
+    html+='<select onchange="sf('+i+',\'accion_arbol\',this.value)">';
+    html+='<option value="">Seleccionar...</option>';
+    ['Mantener dictamen original','Modificar dictamen — Cambio a poda','Modificar dictamen — Cambio a derribo','Modificar dictamen — Cambio a trasplante','Dictamen sin efecto — Árbol intervenido','Dictamen sin efecto — Árbol caído/muerto','Se agregan nuevos sujetos forestales','Requiere nueva evaluación'].forEach(function(v){
+      html+='<option'+(a.accion_arbol===v?' selected':'')+'>'+v+'</option>';
+    });
+    html+='</select></div>';
+    html+='</div>';
 
     html+='<div class="field"><label>Notas del árbol</label>';
     html+='<textarea placeholder="Observaciones de cambio, condición actual..." oninput="sf('+i+',\'notas\',this.value)">'+esc(a.notas)+'</textarea></div>';
@@ -960,39 +969,59 @@ function enviarReinspeccion(){
       y+=8;
 
       // ── Fila datos generales: 8 columnas ──
+      // Sitio ya aparece en encabezado del árbol — no repetir en tabla
+      var riesgoLbl=a.riesgo_nuevo==='alto'?'ALTO':a.riesgo_nuevo==='medio'?'MEDIO':'N/A';
       var datCols=[
-        {t:'N. comun',    v:a.especie||'—',         w:cW*0.18},
-        {t:'N. cientifico',v:a.cientifico||'—',     w:cW*0.22},
-        {t:'Altura',      v:a.altura_nueva?a.altura_nueva+' m':'—', w:cW*0.10},
-        {t:'DAP',         v:a.dap_nuevo?a.dap_nuevo+' cm':'—',      w:cW*0.10},
-        {t:'Estado',      v:a.estado_nuevo||'—',    w:cW*0.12},
-        {t:'Fase',        v:a.fase_nueva||'—',      w:cW*0.13},
-        {t:'Sitio',       v:sitioR||'—',            w:cW*0.15},
-        {t:'Riesgo',      v:(a.riesgo_nuevo==='alto'?'ALTO':a.riesgo_nuevo==='medio'?'MEDIO':'No aplica'),  w:cW*0.10}
+        {t:'N. comun',       v:a.especie||'—',                         w:cW*0.20},
+        {t:'N. cientifico',  v:a.cientifico||'—',                      w:cW*0.25},
+        {t:'Altura',         v:a.altura_nueva?a.altura_nueva+' m':'—', w:cW*0.10},
+        {t:'DAP',            v:a.dap_nuevo?a.dap_nuevo+' cm':'—',      w:cW*0.10},
+        {t:'Estado fisico',  v:a.estado_nuevo||'—',                    w:cW*0.15},
+        {t:'Fase fenologica',v:a.fase_nueva||'—',                      w:cW*0.13},
+        {t:'Riesgo',         v:riesgoLbl,                              w:cW*0.07}
       ];
       // Header
       var xDat=M;
+      // Header row
       datCols.forEach(function(dc2){
-        doc.setFillColor.apply(doc,GOLD_L);doc.rect(xDat,y,dc2.w,5.5,'F');
-        doc.setDrawColor.apply(doc,GC);doc.setLineWidth(0.15);doc.rect(xDat,y,dc2.w,5.5,'S');
-        doc.setFont('helvetica','bold');doc.setFontSize(5);doc.setTextColor.apply(doc,BLK);
-        doc.text(dc2.t,xDat+dc2.w/2,y+3,'center');
+        doc.setFillColor.apply(doc,GOLD_L);doc.rect(xDat,y,dc2.w,6,'F');
+        doc.setDrawColor.apply(doc,GC);doc.setLineWidth(0.15);doc.rect(xDat,y,dc2.w,6,'S');
+        doc.setFont('helvetica','bold');doc.setFontSize(5.5);doc.setTextColor.apply(doc,TEAL);
+        // Dividir texto largo en 2 líneas si es necesario
+        var hdrLines=doc.splitTextToSize(dc2.t,dc2.w-1);
+        hdrLines.slice(0,2).forEach(function(hl,hli){
+          doc.text(hl,xDat+dc2.w/2,y+2.5+hli*2.8,'center');
+        });
         xDat+=dc2.w;
       });
-      y+=5.5;
-      // Valores
+      y+=6;
+      // Valores row
       xDat=M;
+      // Calcular altura máxima necesaria
+      var maxH=8;
       datCols.forEach(function(dc2){
-        doc.setFillColor(255,255,255);doc.rect(xDat,y,dc2.w,7,'F');
-        doc.setDrawColor.apply(doc,GC);doc.setLineWidth(0.15);doc.rect(xDat,y,dc2.w,7,'S');
-        var fs2=dc2.w<20?5.5:6.5;
-        if(dc2.t==='N. cientifico')doc.setFont('helvetica','bolditalic');else doc.setFont('helvetica','normal');
-        doc.setFontSize(fs2);doc.setTextColor.apply(doc,BLK);
+        doc.setFontSize(6.5);
+        var lines=doc.splitTextToSize(dc2.v,dc2.w-2);
+        var h=Math.max(8,lines.length*4.2+2);
+        if(h>maxH)maxH=h;
+      });
+      datCols.forEach(function(dc2){
+        doc.setFillColor(255,255,255);doc.rect(xDat,y,dc2.w,maxH,'F');
+        doc.setDrawColor.apply(doc,GC);doc.setLineWidth(0.15);doc.rect(xDat,y,dc2.w,maxH,'S');
+        // Auto-ajuste fuente
+        var fs2=6.5;
+        if(dc2.t==='N. cientifico'){doc.setFont('helvetica','bolditalic');}
+        else if(dc2.t==='Riesgo'){
+          doc.setFont('helvetica','bold');
+          var rCol2=a.riesgo_nuevo==='alto'?[200,40,40]:a.riesgo_nuevo==='medio'?[200,150,0]:[27,100,60];
+          doc.setTextColor.apply(doc,rCol2);
+        } else {doc.setFont('helvetica','normal');doc.setTextColor.apply(doc,BLK);}
+        doc.setFontSize(fs2);
         var txt2=doc.splitTextToSize(dc2.v,dc2.w-2);
-        doc.text(txt2[0]||'—',xDat+dc2.w/2,y+4.5,'center');
+        txt2.forEach(function(tl,tli){doc.text(tl,xDat+dc2.w/2,y+4+tli*4.2,'center');});
         xDat+=dc2.w;
       });
-      doc.setFont('helvetica','normal');
+      doc.setFont('helvetica','normal');doc.setTextColor.apply(doc,BLK);
       y+=7;
 
       // ── Evaluación estructural ──
@@ -1025,11 +1054,13 @@ function enviarReinspeccion(){
       var raizT=(a.ch_raiz||[]).length?(a.ch_raiz||[]).join(', '):'Sin hallazgos';
       var reqT=a.manejo_nuevo||'—';
       var manejoT=a.manejo_nuevo||'Sin manejo';
+      var accionT=a.accion_arbol||'';
 
-      // Copa | Requerimientos/Manejo
+      // Copa | Manejo + Acción
+      var manejoAccionT=manejoT+(accionT?' | Accion: '+accionT:'');
       var hCopa=evalFila2('Copa',copaT,0,LW,false);
       var yBef=y;y=yBef;
-      evalFila2('Manejo:',manejoT,LW,RW,true);
+      evalFila2('Manejo:',manejoAccionT,LW,RW,true);
       y=yBef+hCopa;
 
       // Fuste | Afectaciones+Riesgo
@@ -1173,7 +1204,7 @@ function _enviarDatosReinsp(folio,fecha,pdfB64){
       nombre:a.especie||a.nombre,especie:a.especie,cientifico:a.cientifico,
       altura:a.altura_nueva,dap:a.dap_nuevo,estado:a.estado_nuevo,fase:a.fase_nueva,
       ch_copa:a.ch_copa,ch_fuste:a.ch_fuste,ch_raiz:a.ch_raiz,
-      riesgo:a.riesgo_nuevo,manejo:a.manejo_nuevo,notas:a.notas
+      riesgo:a.riesgo_nuevo,manejo:a.manejo_nuevo,accion:a.accion_arbol,notas:a.notas
     };})
   };
   fetch(SCRIPT_URL,{
