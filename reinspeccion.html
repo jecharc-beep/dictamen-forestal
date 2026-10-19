@@ -287,6 +287,24 @@ function goTab(n){
 function buscarFolio(){
   var folio=(g('buscar-folio').value||'').trim().toUpperCase();
   if(!folio){toast('Ingresa un folio');return;}
+
+  // Limpiar campos de reinspección para nueva reinspección
+  if(g('folio-reinsp'))g('folio-reinsp').value='';
+  if(g('fecha-reinsp')){
+    var hoy=new Date();
+    var dd=String(hoy.getDate()).padStart(2,'0');
+    var mm=String(hoy.getMonth()+1).padStart(2,'0');
+    g('fecha-reinsp').value=dd+'/'+mm+'/'+hoy.getFullYear();
+  }
+  if(g('sup-reinsp'))g('sup-reinsp').value='';
+  if(g('motivo'))g('motivo').value='';
+  if(g('obs-reinsp'))g('obs-reinsp').value='';
+  if(g('conclusion'))g('conclusion').value='';
+  if(g('accion-final'))g('accion-final').value='';
+  if(g('firma-sup'))g('firma-sup').value='';
+  fotosReinsp=[];renderFotosReinsp();
+  g('folio-badge').textContent='FOLIO';
+
   var res=g('resultado-folio');
   res.style.display='block';res.className='resultado-folio';
   res.innerHTML='🔍 Buscando folio <b>'+folio+'</b>...';
@@ -1062,22 +1080,60 @@ function enviarReinspeccion(){
       }
     }
 
-    // Fotos de reinspección
+    // Fotos de reinspección — 2x2 por página
     if(fotosReinsp&&fotosReinsp.length){
-      doc.addPage();y=M;
-      doc.setFillColor.apply(doc,TEAL_L);doc.rect(M,y,cW,7,'F');
-      doc.setFont('helvetica','bold');doc.setFontSize(8.5);doc.setTextColor.apply(doc,TEAL);
-      doc.text('Registro fotografico — Reinspeccion',M+3,y+5);y+=9;
-      var gap2=5,fW2=(cW-gap2)/2,fH2=fW2*0.75;
-      fotosReinsp.forEach(function(fs,fi){
-        var posEnPag=fi%4,col2=posEnPag%2,fila2=Math.floor(posEnPag/2);
-        if(fi>0&&posEnPag===0){doc.addPage();y=M;}
-        var fx2=M+col2*(fW2+gap2),fy2=y+fila2*(fH2+10);
-        doc.setFont('helvetica','bold');doc.setFontSize(8);doc.setTextColor.apply(doc,TEAL);
-        doc.text('Foto '+(fi+1),fx2,fy2-1);
-        doc.setFillColor(240,246,242);doc.rect(fx2,fy2,fW2,fH2,'F');
-        doc.setDrawColor.apply(doc,GC);doc.setLineWidth(0.3);doc.rect(fx2,fy2,fW2,fH2,'S');
-        try{doc.addImage(fs,'JPEG',fx2,fy2,fW2,fH2,'','FAST');}catch(e){}
+      var gap2=5;
+      var fW2=(cW-gap2)/2;
+      var fH2=fW2*0.78;
+      var lbl2=6; // altura etiqueta
+      var pie2=5; // pie foto
+
+      var grupos2=[];
+      for(var gi2=0;gi2<fotosReinsp.length;gi2+=4){
+        var g2=fotosReinsp.slice(gi2,gi2+4);
+        g2._start=gi2;
+        grupos2.push(g2);
+      }
+
+      grupos2.forEach(function(grp,gidx){
+        doc.addPage();y=M;
+        // Título
+        doc.setFillColor.apply(doc,LG);doc.rect(M,y,cW,7,'F');
+        doc.setFont('helvetica','bold');doc.setFontSize(8.5);doc.setTextColor.apply(doc,TEAL);
+        doc.text(gidx===0?'Registro fotografico — Reinspeccion':'Registro fotografico (cont.)',M+3,y+5);
+        var yStart=y+9;
+
+        // Calcular altura disponible
+        var altDisp2=PH-yStart-12;
+        var fH2calc=(altDisp2-gap2-lbl2*2-pie2*2)/2;
+        fH2calc=Math.min(fH2calc,fW2*0.82);
+        fH2calc=Math.max(fH2calc,50);
+
+        var pos2=[{col:0,fila:0},{col:1,fila:0},{col:0,fila:1},{col:1,fila:1}];
+
+        grp.forEach(function(fsImg,idx2){
+          if(idx2>=4)return;
+          var p2=pos2[idx2];
+          var fx2=M+p2.col*(fW2+gap2);
+          var fy2=yStart+p2.fila*(lbl2+fH2calc+pie2+gap2);
+          var fiGlobal=grp._start+idx2;
+
+          // Etiqueta
+          doc.setFont('helvetica','bold');doc.setFontSize(8);doc.setTextColor.apply(doc,TEAL);
+          doc.text('Foto '+(fiGlobal+1),fx2,fy2+lbl2-1);
+          // Imagen
+          doc.setFillColor(240,246,242);
+          doc.rect(fx2,fy2+lbl2,fW2,fH2calc,'F');
+          doc.setDrawColor.apply(doc,GC);doc.setLineWidth(0.3);
+          doc.rect(fx2,fy2+lbl2,fW2,fH2calc,'S');
+          try{
+            var imgData='data:image/jpeg;base64,'+fsImg;
+            doc.addImage(imgData,'JPEG',fx2,fy2+lbl2,fW2,fH2calc,'','FAST');
+          }catch(e2){console.warn('Foto reinsp error:',e2);}
+          // Pie
+          doc.setFont('helvetica','normal');doc.setFontSize(7);doc.setTextColor.apply(doc,GR);
+          doc.text('Reinspeccion forestal.',fx2,fy2+lbl2+fH2calc+pie2-1);
+        });
       });
     }
 
