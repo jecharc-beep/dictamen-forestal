@@ -203,20 +203,6 @@ body{font-family:'IBM Plex Sans',sans-serif;background:var(--bg);color:var(--txt
         <textarea id="conclusion" placeholder="Conclusión de la reinspección..." oninput="guardarAuto()"></textarea>
       </div>
       <div class="field">
-        <label>Acción recomendada</label>
-        <select id="accion-final" onchange="guardarAuto()">
-          <option value="">Seleccionar...</option>
-          <option>Mantener dictamen original</option>
-          <option>Modificar dictamen — Cambio a poda</option>
-          <option>Modificar dictamen — Cambio a derribo</option>
-          <option>Modificar dictamen — Cambio a trasplante</option>
-          <option>Dictamen sin efecto — Árbol intervenido</option>
-          <option>Dictamen sin efecto — Árbol caído/muerto</option>
-          <option>Requiere nueva evaluación</option>
-          <option>Se agregan nuevos sujetos forestales</option>
-        </select>
-      </div>
-      <div class="field">
         <label>Fotos de reinspección</label>
         <div style="display:flex;gap:8px;margin-bottom:8px;">
           <button class="btn btn-v" onclick="document.getElementById('fotos-reinsp-cam').click()" style="flex:1;">📷 Cámara</button>
@@ -494,13 +480,6 @@ function renderArboles(){
     html+='<option value="">Seleccionar...</option>';
     ['Poda','Derribo','Trasplante','Sin manejo','Mantener dictamen original'].forEach(function(v){
       html+='<option'+(a.manejo_nuevo===v?' selected':'')+'>'+v+'</option>';
-    });
-    html+='</select></div>';
-    html+='<div class="field"><label>Acción recomendada</label>';
-    html+='<select onchange="sf('+i+',\'accion_arbol\',this.value)">';
-    html+='<option value="">Seleccionar...</option>';
-    ['Mantener dictamen original','Modificar dictamen — Cambio a poda','Modificar dictamen — Cambio a derribo','Modificar dictamen — Cambio a trasplante','Dictamen sin efecto — Árbol intervenido','Dictamen sin efecto — Árbol caído/muerto','Se agregan nuevos sujetos forestales','Requiere nueva evaluación'].forEach(function(v){
-      html+='<option'+(a.accion_arbol===v?' selected':'')+'>'+v+'</option>';
     });
     html+='</select></div>';
     html+='</div>';
@@ -1077,9 +1056,13 @@ function enviarReinspeccion(){
       doc.text('Requerimientos / Manejo',M+LW+RW/2,y+3.8,'center');
       y+=5.5;
 
-      function evalFila2(lbl,txt,xOff,w,shade){
+      function medFila2(txt,w){
+        doc.setFont('helvetica','normal');doc.setFontSize(7);
+        return Math.max(7,doc.splitTextToSize(txt||'—',w-18).length*4.2+3);
+      }
+      function evalFila2(lbl,txt,xOff,w,shade,hF){
         var sH=doc.splitTextToSize(txt||'—',w-18);
-        var h=Math.max(7,sH.length*4.2+3);
+        var h=Math.max(7,sH.length*4.2+3,hF||0);
         if(y+h>PH-12){doc.addPage();y=M;}
         if(shade){doc.setFillColor.apply(doc,GOLD_L);}else{doc.setFillColor(255,255,255);}
         doc.rect(M+xOff,y,w,h,'FD');
@@ -1124,16 +1107,20 @@ function enviarReinspeccion(){
       var seen2={};
       var fundPodaR=fundPartes.filter(function(p){if(seen2[p])return false;seen2[p]=true;return true;}).join(' | ');
       var manejoAccionT=manejoT+(accionT?' | '+accionT:'')+(fundPodaR?' | Fundamento: '+fundPodaR:'');
-      var hCopa=evalFila2('Copa',copaT,0,LW,false);
+      var hRow1=Math.max(medFila2(copaT,LW),medFila2(manejoAccionT,RW));
+      if(y+hRow1>PH-12){doc.addPage();y=M;}
+      var hCopa=evalFila2('Copa',copaT,0,LW,false,hRow1);
       var yBef=y;y=yBef;
-      evalFila2('Manejo:',manejoAccionT,LW,RW,true);
+      evalFila2('Manejo:',manejoAccionT,LW,RW,true,hRow1);
       y=yBef+hCopa;
 
       // Fuste | Afectaciones+Riesgo
       var fusteRiesgoT='Riesgo: '+(a.riesgo_nuevo==='alto'?'ALTO':a.riesgo_nuevo==='medio'?'MEDIO':'NO APLICA');
-      var hFuste=evalFila2('Fuste',fusteT,0,LW,false);
+      var hF2=Math.max(medFila2(fusteT,LW),medFila2(sitioR||'—',RW*0.55),9);
+      if(y+hF2>PH-12){doc.addPage();y=M;}
+      var hFuste=evalFila2('Fuste',fusteT,0,LW,false,hF2);
       yBef=y;y=yBef;
-      evalFila2('Afect.:',sitioR||'—',LW,RW*0.55,false);
+      evalFila2('Afect.:',sitioR||'—',LW,RW*0.55,false,hF2);
       y=yBef;
       var rColArr=a.riesgo_nuevo==='alto'?[200,40,40]:a.riesgo_nuevo==='medio'?[200,150,0]:[27,100,60];
       var rW2=RW*0.45;
