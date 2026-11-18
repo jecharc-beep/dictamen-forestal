@@ -336,7 +336,7 @@ function buscarFolio(){
             altura_nueva:'',dap_nuevo:'',estado_nuevo:'',fase_nueva:'',
             ch_copa:[],ch_fuste:[],ch_raiz:[],
             cambios_copa:[],cambios_fuste:[],cambios_raiz:[],
-            riesgo_nuevo:'',manejo_nuevo:'',accion_arbol:'',notas:''
+            riesgo_nuevo:'',manejo_nuevo:'',accion_arbol:'',ch_poda_reinsp:[],ch_derribo_reinsp:[],ch_nae_der_reinsp:[],ch_nae_tras_reinsp:[],notas:''
           };
         });
 
@@ -505,6 +505,47 @@ function renderArboles(){
     html+='</select></div>';
     html+='</div>';
 
+    html+='<p class="stitle">Fundamento normativo</p>';
+    html+='<div style="display:flex;flex-direction:column;gap:6px;margin-bottom:10px;">';
+    // Función helper para renderizar acordeón de checklist
+    function acoordChk(campo,arr,opciones,titulo){
+      var body='<div class="ckg">';
+      opciones.forEach(function(op){
+        var ck=arr.indexOf(op)>=0;
+        var lbl=op.replace(/^F[IVX]+-[a-z]\)\s*/,'').replace(/^F[IVX]+\)\s*/,'').replace(/^A59\)\s*/,'').replace(/^D[IVX]+\)\s*/,'').replace(/^T[0-9.]+\)\s*/,'').replace(/^N[0-9.]+\)\s*/,'');
+        body+='<div class="chk-item'+(ck?' ck':'')+'" onclick="tchk('+i+',\''+campo+'\',\''+op.replace(/'/g,"\\'")+'\')">';
+        body+='<div class="cb">'+(ck?'✓':'')+'</div>'+lbl+'</div>';
+      });
+      body+='</div>';
+      return '<div class="acord"><div class="acord-hdr">'+titulo+' <i>▾</i></div><div class="acord-body open">'+body+'</div></div>';
+    }
+
+    // ── Poda Art. 33 ──
+    html+='<p class="stitle" style="font-size:11px;color:var(--v);">✂️ Poda Art. 33 — Reglamento Zapopan</p>';
+    [
+      {t:'Fracción I — Inminente peligro',c:'ch_poda_reinsp',ops:['FI-a) a) Interferencia con líneas de conducción aérea','FI-b) b) Ramas bajas que obstruyen el paso peatonal o vehicular','FI-c) c) Impedimento a luminarias y señales de tráfico','FI-d) d) Ramas con riesgo de desgajarse','FI-e) e) Árboles de porte alto con riesgo de desplome','FI-f) f) Ubicados en sitios inadecuados']},
+      {t:'Fracción II — Salud del árbol',c:'ch_poda_reinsp',ops:['FII-a) a) Regular crecimiento radicular, de copa y follaje','FII-b) b) Suprimir ramas mal orientadas','FII-c) c) Mejorar visibilidad sin podas excesivas']},
+      {t:'Fracción IV — Fitosanitaria',c:'ch_poda_reinsp',ops:['FIV) Eliminación de ramas muertas, plagadas, hongos, cancros, pudriciones, plantas parásitas o trepadoras']},
+      {t:'Fracción V — Restauración',c:'ch_poda_reinsp',ops:['FV-a) a) Árboles podados más del 25% o con desmoches previos','FV-b) b) Copas desbalanceadas','FV-c) c) Follaje reprimido que requiere formación']},
+      {t:'Fracción VI — Afectación a infraestructura',c:'ch_poda_reinsp',ops:['FVI) Interferencia con tuberías, cableado, banquetas, guarniciones, bardas o muros']},
+      {t:'Art. 59 — Poda estética',c:'ch_poda_reinsp',ops:['A59) No se requiere permiso (Diámetro de ramas menor a 7.5 cm)']}
+    ].forEach(function(g2){html+=acoordChk(g2.c,a[g2.c]||[],g2.ops,g2.t);});
+
+    // ── Derribo Art. 35 ──
+    html+='<p class="stitle" style="font-size:11px;color:var(--v);margin-top:8px;">🪓 Derribo Art. 35 — Reglamento Zapopan</p>';
+    [
+      {t:'Fracciones I–V — Criterios generales',c:'ch_derribo_reinsp',ops:['DI) I. Árbol en estado fitosanitario crítico que representa peligro','DII) II. Árbol con daño estructural severo irreversible','DIII) III. Árbol con inclinación peligrosa mayor a 45°','DIV) IV. Árbol obstruye infraestructura de interés público','DV) V. Árbol en zona de obra o proyecto municipal']},
+      {t:'Fracciones VI–VIII — Criterios adicionales',c:'ch_derribo_reinsp',ops:['DVI) VI. Ordenamiento o reordenamiento territorial','DVII) VII. Dictamen de protección civil por riesgo estructural','DVIII) VIII. Proyectos privados con autorización municipal']}
+    ].forEach(function(g2){html+=acoordChk(g2.c,a[g2.c]||[],g2.ops,g2.t);});
+
+    // ── NAE-SEMADES 001/2003 ──
+    html+='<p class="stitle" style="font-size:11px;color:var(--v);margin-top:8px;">📋 NAE-SEMADES 001/2003</p>';
+    [
+      {t:'Trasplante — 5.4.1 al 5.4.7',c:'ch_nae_tras_reinsp',ops:['T5.4.1) 5.4.1 Árbol en buen estado susceptible de trasplante','T5.4.2) 5.4.2 Árbol con valor patrimonial o ambiental','T5.4.3) 5.4.3 Proyecto requiere reubicación del ejemplar','T5.4.4) 5.4.4','T5.4.5) 5.4.5','T5.4.6) 5.4.6','T5.4.7) 5.4.7']},
+      {t:'Derribo — 5.6.1 al 5.6.8',c:'ch_nae_der_reinsp',ops:['N5.6.1) 5.6.1 Fuste de grosor obstruye circulación peatonal o vehicular','N5.6.2) 5.6.2 Ubicado en camellones o cruceros provocando accidentes','N5.6.3) 5.6.3 Obstruye acceso a cochera o entrada vehicular','N5.6.4) 5.6.4 Raíces dañan cimientos, bardas o cañerías','N5.6.5) 5.6.5 Raíces levantan carpeta asfáltica o banquetas','N5.6.6) 5.6.6 Árbol sobremaduro que obstruye líneas eléctricas de alta tensión','N5.6.7) 5.6.7 Árbol en turno fisiológico avanzado con riesgo para la vía pública','N5.6.8) 5.6.8 Requerido por obra de ingeniería civil de interés público']}
+    ].forEach(function(g2){html+=acoordChk(g2.c,a[g2.c]||[],g2.ops,g2.t);});
+
+    html+='</div>';
     html+='<div class="field"><label>Notas del árbol</label>';
     html+='<textarea placeholder="Observaciones de cambio, condición actual..." oninput="sf('+i+',\'notas\',this.value)">'+esc(a.notas)+'</textarea></div>';
     html+='</div></div>'; // card-body, card
@@ -577,7 +618,7 @@ function renderFotosReinsp(){
     var div=document.createElement('div');
     div.style.cssText='position:relative;width:80px;height:80px;';
     var img=document.createElement('img');
-    img.src='data:image/jpeg;base64,'+b64;
+    img.src=(b64.indexOf('data:')===0?b64:'data:image/jpeg;base64,'+b64);
     img.style.cssText='width:80px;height:80px;object-fit:cover;border-radius:6px;border:1px solid var(--bdr);';
     var btn=document.createElement('button');
     btn.textContent='✕';
@@ -1057,7 +1098,32 @@ function enviarReinspeccion(){
       var accionT=a.accion_arbol||'';
 
       // Copa | Manejo + Acción
-      var manejoAccionT=manejoT+(accionT?' | Accion: '+accionT:'');
+      // Fundamento normativo
+      var fundPartes=[];
+      (a.ch_poda_reinsp||[]).forEach(function(v){
+        var m=v.match(/^F([IVX]+)-([a-z])\)/);
+        var m2=v.match(/^F([IVX]+)\)/);
+        var m3=v.match(/^A59\)/);
+        if(m)fundPartes.push('Art.33 Fracc.'+m[1]+' Inc.'+m[2]+')');
+        else if(m2)fundPartes.push('Art.33 Fracc.'+m2[1]);
+        else if(m3)fundPartes.push('Art.59');
+      });
+      (a.ch_derribo_reinsp||[]).forEach(function(v){
+        var m=v.match(/^D([IVX]+)\)/);
+        if(m)fundPartes.push('Art.35 Fracc.'+m[1]);
+      });
+      (a.ch_nae_der_reinsp||[]).forEach(function(v){
+        var m=v.match(/^N(5\.\d+\.\d+)\)/);
+        if(m)fundPartes.push('NAE '+m[1]);
+      });
+      (a.ch_nae_tras_reinsp||[]).forEach(function(v){
+        var m=v.match(/^T(5\.\d+\.\d+)\)/);
+        if(m)fundPartes.push('NAE '+m[1]);
+      });
+      // Deduplicar
+      var seen2={};
+      var fundPodaR=fundPartes.filter(function(p){if(seen2[p])return false;seen2[p]=true;return true;}).join(' | ');
+      var manejoAccionT=manejoT+(accionT?' | '+accionT:'')+(fundPodaR?' | Fundamento: '+fundPodaR:'');
       var hCopa=evalFila2('Copa',copaT,0,LW,false);
       var yBef=y;y=yBef;
       evalFila2('Manejo:',manejoAccionT,LW,RW,true);
@@ -1067,19 +1133,20 @@ function enviarReinspeccion(){
       var fusteRiesgoT='Riesgo: '+(a.riesgo_nuevo==='alto'?'ALTO':a.riesgo_nuevo==='medio'?'MEDIO':'NO APLICA');
       var hFuste=evalFila2('Fuste',fusteT,0,LW,false);
       yBef=y;y=yBef;
-      evalFila2('Afect.:',sitioR||'—',LW,RW*0.6,false);
+      evalFila2('Afect.:',sitioR||'—',LW,RW*0.55,false);
       y=yBef;
       var rColArr=a.riesgo_nuevo==='alto'?[200,40,40]:a.riesgo_nuevo==='medio'?[200,150,0]:[27,100,60];
-      doc.setFillColor(255,255,255);doc.rect(M+LW+RW*0.6,yBef,RW*0.4,hFuste,'FD');
-      doc.setFont('helvetica','bold');doc.setFontSize(6);doc.setTextColor.apply(doc,TEAL);
-      doc.text('Riesgo:',M+LW+RW*0.6+2,yBef+3.5);
-      doc.setFontSize(7);doc.setTextColor.apply(doc,rColArr);
+      var rW2=RW*0.45;
+      doc.setFillColor(255,255,255);doc.rect(M+LW+RW*0.55,yBef,rW2,hFuste,'FD');
+      doc.setFont('helvetica','bold');doc.setFontSize(6.5);doc.setTextColor.apply(doc,TEAL);
+      doc.text('Riesgo:',M+LW+RW*0.55+2,yBef+4);
       var rLbl2=a.riesgo_nuevo==='alto'?'ALTO':a.riesgo_nuevo==='medio'?'MEDIO':'NO APLICA';
-      doc.text(rLbl2,M+LW+RW*0.6+RW*0.2,yBef+8,'center');
+      doc.setFontSize(8);doc.setTextColor.apply(doc,rColArr);
+      doc.text(rLbl2,M+LW+RW*0.55+rW2/2,yBef+hFuste*0.65,'center');
       y=yBef+hFuste;
 
-      // Raíz (ancho completo)
-      evalFila2('Raiz',raizT,0,cW,false);
+      // Sistema radicular (ancho completo)
+      evalFila2('Sistema radicular',raizT,0,cW,false);
 
       // Notas del árbol
       if(a.notas){evalFila2('Notas:',a.notas,0,cW,true);}
@@ -1148,7 +1215,7 @@ function enviarReinspeccion(){
           doc.setDrawColor.apply(doc,GC);doc.setLineWidth(0.3);
           doc.rect(fx2,fy2+lbl2,fW2,fH2calc,'S');
           try{
-            var imgData='data:image/jpeg;base64,'+fsImg;
+            var imgData=(fsImg.indexOf('data:')===0?fsImg:'data:image/jpeg;base64,'+fsImg);
             doc.addImage(imgData,'JPEG',fx2,fy2+lbl2,fW2,fH2calc,'','FAST');
           }catch(e2){console.warn('Foto reinsp error:',e2);}
           // Pie
