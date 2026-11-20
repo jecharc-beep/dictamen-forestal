@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="es"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Estadísticas — Dictamen Forestal</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root{--g:#1b643c;--bg:#f4f7f5;--t:#1a2a22}
+*{box-sizing:border-box}
+body{margin:0;font-family:system-ui,sans-serif;background:var(--bg);color:var(--t)}
+header{background:var(--g);color:#fff;padding:14px 16px;font-weight:700;font-size:16px}
+main{max-width:900px;margin:0 auto;padding:14px}
+.card{background:#fff;border-radius:12px;padding:14px;margin-bottom:14px;box-shadow:0 1px 4px rgba(0,0,0,.08)}
+.card h3{margin:0 0 10px;font-size:14px;color:var(--g)}
+input,select,button{font:inherit;padding:10px;border-radius:8px;border:1px solid #bbb}
+button{background:var(--g);color:#fff;border:none;font-weight:700;cursor:pointer}
+#login{max-width:340px;margin:60px auto;text-align:center}
+#login input{width:100%;margin:10px 0}
+#err{color:#c0392b;font-size:13px;min-height:18px}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:14px}
+.kpi{background:#fff;border-radius:12px;padding:12px;text-align:center;box-shadow:0 1px 4px rgba(0,0,0,.08)}
+.kpi b{display:block;font-size:26px;color:var(--g)}
+.kpi span{font-size:12px;color:#666}
+.bar{display:flex;gap:8px;align-items:center;margin-bottom:12px;flex-wrap:wrap}
+canvas{max-height:300px}
+</style></head><body>
+<header>📊 Estadísticas semanales — Dictamen Forestal</header>
+<main>
+<div id="login" class="card">
+  <h3>Acceso restringido</h3>
+  <input id="clave" type="password" placeholder="Contraseña" autocomplete="current-password" onkeydown="if(event.key==='Enter')entrar()">
+  <button onclick="entrar()" id="btn" style="width:100%">Entrar</button>
+  <div id="err"></div>
+</div>
+<div id="panel" style="display:none">
+  <div class="bar">
+    <label>Mostrar últimas
+      <select id="n" onchange="dibujar()"><option>4</option><option selected>8</option><option>12</option><option>26</option></select> semanas</label>
+    <button onclick="salir()" style="margin-left:auto;background:#888">Cerrar sesión</button>
+  </div>
+  <div class="kpis" id="kpis"></div>
+  <div class="card"><h3>Dictámenes y árboles por semana</h3><canvas id="c1"></canvas></div>
+  <div class="card"><h3>Nivel de riesgo por semana</h3><canvas id="c2"></canvas></div>
+  <div class="card"><h3>Tipo de manejo por semana</h3><canvas id="c3"></canvas></div>
+  <div class="card"><h3>Dictámenes por supervisor (periodo mostrado)</h3><canvas id="c4"></canvas></div>
+</div>
+</main>
+<script>
+var URL_SCRIPT='https://script.google.com/macros/s/AKfycbyDw0hoQgY-yd431MEg3cUkqGjoImu8MQv8ecrpxBoZlj2ocaEz2L4uFpLk-dRMT0MW_w/exec';
+var DATOS=[],charts=[];
+function entrar(){
+  var c=document.getElementById('clave').value;
+  if(!c)return;
+  var b=document.getElementById('btn'),e=document.getElementById('err');
+  b.disabled=true;b.textContent='Verificando...';e.textContent='';
+  fetch(URL_SCRIPT,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({tipo:'estadisticas',clave:c})})
+  .then(function(r){return r.json();})
+  .then(function(j){
+    if(!j.ok)throw new Error(j.error||'Error');
+    DATOS=j.semanas||[];
+    document.getElementById('login').style.display='none';
+    document.getElementById('panel').style.display='block';
+    document.getElementById('clave').value='';
+    dibujar();
+  })
+  .catch(function(x){e.textContent=x.message==='Failed to fetch'?'Sin conexión':x.message;})
+  .finally(function(){b.disabled=false;b.textContent='Entrar';});
+}
+function salir(){DATOS=[];location.reload();}
+function etq(k){var p=k.split('-');return p[2]+'/'+p[1];}
+function dibujar(){
+  var n=+document.getElementById('n').value;
+  var d=DATOS.slice(-n),L=d.map(function(s){return 'Sem '+etq(s.semana);});
+  function sum(f){return d.reduce(function(a,s){return a+s[f];},0);}
+  document.getElementById('kpis').innerHTML=
+    [['Dictámenes',sum('dictamenes')],['Árboles',sum('arboles')],['Riesgo alto',sum('alto')],
+     ['Promedio/sem',d.length?(sum('dictamenes')/d.length).toFixed(1):0]]
+    .map(function(k){return '<div class="kpi"><b>'+k[1]+'</b><span>'+k[0]+'</span></div>';}).join('');
+  charts.forEach(function(c){c.destroy();});charts=[];
+  var op={responsive:true,plugins:{legend:{position:'bottom'}},scales:{y:{beginAtZero:true,ticks:{precision:0}}}};
+  function ds(l,f,col){return {label:l,data:d.map(function(s){return s[f];}),backgroundColor:col};}
+  charts.push(new Chart(c1,{type:'bar',data:{labels:L,datasets:[ds('Dictámenes','dictamenes','#1b643c'),ds('Árboles','arboles','#d4a017')]},options:op}));
+  var st=JSON.parse(JSON.stringify(op));st.scales.x={stacked:true};st.scales.y.stacked=true;
+  charts.push(new Chart(c2,{type:'bar',data:{labels:L,datasets:[ds('Alto','alto','#c82828'),ds('Medio','medio','#d4a017'),ds('No aplica','noAplica','#1b643c')]},options:st}));
+  charts.push(new Chart(c3,{type:'bar',data:{labels:L,datasets:[ds('Poda','poda','#2e86c1'),ds('Derribo','derribo','#c0392b'),ds('Trasplante','trasplante','#7d3c98')]},options:op}));
+  var sup={};d.forEach(function(s){for(var k in s.supervisores)sup[k]=(sup[k]||0)+s.supervisores[k];});
+  var ks=Object.keys(sup).sort(function(a,b){return sup[b]-sup[a];});
+  charts.push(new Chart(c4,{type:'bar',data:{labels:ks,datasets:[{label:'Dictámenes',data:ks.map(function(k){return sup[k];}),backgroundColor:'#1b643c'}]},options:{indexAxis:'y',plugins:{legend:{display:false}},scales:{x:{beginAtZero:true,ticks:{precision:0}}}}}));
+}
+</script></body></html>
